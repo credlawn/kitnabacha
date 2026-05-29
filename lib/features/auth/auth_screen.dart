@@ -68,9 +68,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
-        decoration: const BoxDecoration(
-          color: AppTheme.darkBg,
-          image: DecorationImage(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          image: const DecorationImage(
             image: NetworkImage(
               'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop',
             ),
@@ -88,30 +88,34 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // App Branding Logo/Header
-                  const Text(
+                   Text(
                     'कितना बचा ?',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.w900,
-                      color: AppTheme.primaryLight,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppTheme.primaryLight
+                          : AppTheme.primary,
                       letterSpacing: 1.5,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                   Text(
                     'Kitna Bacha • Smart Ledger & Hisab Kitab',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
-                      color: AppTheme.secondaryText,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppTheme.secondaryText
+                          : AppTheme.lightTextSecondary,
                     ),
                   ),
                   const SizedBox(height: 40),
 
                   // Glassmorphic Input Container
                   Container(
-                    decoration: AppTheme.glassmorphicBox(),
+                    decoration: AppTheme.glassmorphicBox(context: context),
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,8 +212,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       _isLogin
                           ? "Don't have an account? Sign Up"
                           : "Already have an account? Sign In",
-                      style: const TextStyle(
-                        color: AppTheme.primaryLight,
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppTheme.primaryLight
+                            : AppTheme.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),

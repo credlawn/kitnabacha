@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/providers.dart';
 import 'core/supabase/supabase_config.dart';
 import 'core/theme/app_theme.dart';
-import 'features/auth/auth_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 
 void main() async {
@@ -47,7 +46,9 @@ class MyApp extends ConsumerWidget {
     return MaterialApp(
       title: 'Kitna Bacha',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.light,
       home: authState.when(
         data: (user) => DashboardScreen(userId: userId),
         loading: () => const Scaffold(

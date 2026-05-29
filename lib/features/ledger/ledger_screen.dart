@@ -7,7 +7,7 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import 'widgets/add_transaction_sheet.dart';
 
-class LedgerScreen extends ConsumerWidget {
+class LedgerScreen extends ConsumerStatefulWidget {
   final Contact contact;
   final String userId;
 
@@ -16,6 +16,13 @@ class LedgerScreen extends ConsumerWidget {
     required this.contact,
     required this.userId,
   });
+
+  @override
+  ConsumerState<LedgerScreen> createState() => _LedgerScreenState();
+}
+
+class _LedgerScreenState extends ConsumerState<LedgerScreen> {
+  DateTime? _selectedMonth;
 
   // Calculate current contact net balance from transactions list
   double _calculateContactBalance(List<TransactionModel> txns) {
@@ -31,24 +38,24 @@ class LedgerScreen extends ConsumerWidget {
   }
 
   // Delete Contact confirmation dialog
-  void _confirmDeleteContact(BuildContext context, WidgetRef ref) {
+  void _confirmDeleteContact(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: AppTheme.darkCard,
+          backgroundColor: Theme.of(context).cardColor,
           title: const Text('Delete Contact?'),
-          content: Text('Are you sure you want to delete ${contact.name}? All transaction history with them will be deleted.'),
+          content: Text('Are you sure you want to delete ${widget.contact.name}? All transaction history with them will be deleted.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+              child: Text('Cancel', style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54)),
             ),
             TextButton(
               onPressed: () async {
                 final db = ref.read(dbProvider);
                 // Perform local soft-delete
-                await db.softDeleteContact(contact.id);
+                await db.softDeleteContact(widget.contact.id);
                 // Trigger sync in background
                 ref.read(syncEngineProvider).triggerSync();
                 
@@ -65,43 +72,50 @@ class LedgerScreen extends ConsumerWidget {
     );
   }
 
-  // Long-press transaction deletion confirmation
-  void _confirmDeleteTransaction(BuildContext context, WidgetRef ref, TransactionModel txn) {
-    showDialog(
+  // Reusable delete confirmation dialog returning true/false
+  Future<bool?> _confirmDeleteTransactionDialog(BuildContext context, TransactionModel txn) {
+    return showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: AppTheme.darkCard,
+          backgroundColor: Theme.of(context).cardColor,
           title: const Text('Delete Entry?'),
-          content: Text('Delete this transaction of ₹${txn.amount.toStringAsFixed(2)}?'),
+          content: Text('Delete this transaction of ${AppTheme.formatAmount(txn.amount)}?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Cancel', style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54)),
             ),
             TextButton(
-              onPressed: () async {
-                final db = ref.read(dbProvider);
-                await db.softDeleteTransaction(txn.id);
-                
-                // Update contact updatedAt timestamp
-                await db.upsertContact(contact.copyWith(
-                  updatedAt: DateTime.now(),
-                  isDirty: true,
-                ));
-
-                ref.read(syncEngineProvider).triggerSync();
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
-              },
+              onPressed: () => Navigator.pop(context, true),
               child: const Text('Delete', style: TextStyle(color: AppTheme.debitRed, fontWeight: FontWeight.bold)),
             ),
           ],
         );
       },
     );
+  }
+
+  // Handle transaction soft-delete logic
+  Future<void> _deleteTransaction(WidgetRef ref, TransactionModel txn) async {
+    final db = ref.read(dbProvider);
+    await db.softDeleteTransaction(txn.id);
+    
+    // Update contact updatedAt timestamp
+    await db.upsertContact(widget.contact.copyWith(
+      updatedAt: DateTime.now(),
+      isDirty: true,
+    ));
+
+    ref.read(syncEngineProvider).triggerSync();
+  }
+
+  // Long-press transaction deletion confirmation
+  void _confirmDeleteTransaction(BuildContext context, WidgetRef ref, TransactionModel txn) async {
+    final confirmed = await _confirmDeleteTransactionDialog(context, txn);
+    if (confirmed == true) {
+      await _deleteTransaction(ref, txn);
+    }
   }
 
   // Copy structured payment reminder text to clipboard
@@ -113,25 +127,25 @@ class LedgerScreen extends ConsumerWidget {
       return;
     }
 
-    final String formattedAmt = '₹${balance.abs().toStringAsFixed(2)}';
+    final String formattedAmt = AppTheme.formatAmount(balance.abs());
     String reminderText;
 
     if (balance > 0) {
       // They owe us money
       reminderText = 
-          'Hello ${contact.name},\n'
+          'Hello ${widget.contact.name},\n'
           'This is a friendly reminder that your outstanding balance in our ledger is $formattedAmt. '
           'Please make the payment as soon as possible. Thank you!\n\n'
-          'नमस्ते ${contact.name},\n'
+          'नमस्ते ${widget.contact.name},\n'
           'यह एक विनम्र अनुस्मारक है कि हमारे हिसाब-किताब का बकाया $formattedAmt है। '
           'कृपया जल्द ही भुगतान करें। धन्यवाद!';
     } else {
       // We owe them money
       reminderText = 
-          'Hello ${contact.name},\n'
+          'Hello ${widget.contact.name},\n'
           'I wanted to remind you that I owe you $formattedAmt in our ledger. '
           'I am processing the payment and will clear it soon. Thank you!\n\n'
-          'नमस्ते ${contact.name},\n'
+          'नमस्ते ${widget.contact.name},\n'
           'मैं आपको याद दिलाना चाहता था कि मुझे आपको $formattedAmt देने हैं। '
           'मैं जल्द ही इसका भुगतान कर दूंगा। धन्यवाद!';
     }
@@ -139,7 +153,7 @@ class LedgerScreen extends ConsumerWidget {
     Clipboard.setData(ClipboardData(text: reminderText)).then((_) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Reminder for ${contact.name} copied to clipboard!'),
+          content: Text('Reminder for ${widget.contact.name} copied to clipboard!'),
           backgroundColor: AppTheme.primary,
         ),
       );
@@ -153,53 +167,228 @@ class LedgerScreen extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => AddTransactionSheet(
-        contact: contact,
-        userId: userId,
+        contact: widget.contact,
+        userId: widget.userId,
         isOutflow: isOutflow,
         currentBalance: currentBalance,
       ),
     );
   }
 
+  // Open edit transaction sheet
+  void _openEditTransactionSheet(BuildContext context, TransactionModel txn, double currentBalance) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddTransactionSheet(
+        contact: widget.contact,
+        userId: widget.userId,
+        isOutflow: txn.type == 'give' || txn.type == 'pay',
+        currentBalance: currentBalance,
+        transactionToEdit: txn,
+      ),
+    );
+  }
+
+  // Show Bottom Sheet to Pick Month Filter
+  void _showMonthPicker(BuildContext context, List<DateTime> uniqueMonths) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Material(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                  width: 1,
+                ),
+              ),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Filter by Month',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.4,
+                  ),
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      // Option: All Time
+                      ListTile(
+                        leading: const Icon(Icons.all_inclusive_rounded, color: AppTheme.primary),
+                        title: const Text('All Time (Lifetime)'),
+                        trailing: _selectedMonth == null
+                            ? const Icon(Icons.check_circle_rounded, color: AppTheme.primary)
+                            : null,
+                        onTap: () {
+                          setState(() => _selectedMonth = null);
+                          Navigator.pop(context);
+                        },
+                      ),
+                      const Divider(),
+                      // Options for each month
+                      ...uniqueMonths.map((month) {
+                        final label = DateFormat('MMMM yyyy').format(month);
+                        final formattedFilter = DateFormat('MMM-yy').format(month);
+                        final isSelected = _selectedMonth != null &&
+                            _selectedMonth!.year == month.year &&
+                            _selectedMonth!.month == month.month;
+
+                        return ListTile(
+                          leading: const Icon(Icons.calendar_month_rounded),
+                          title: Text(label),
+                          subtitle: Text(formattedFilter),
+                          trailing: isSelected
+                              ? const Icon(Icons.check_circle_rounded, color: AppTheme.primary)
+                              : null,
+                          onTap: () {
+                            setState(() => _selectedMonth = month);
+                            Navigator.pop(context);
+                          },
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final txnsState = ref.watch(transactionsStreamProvider(contact.id));
+  Widget build(BuildContext context) {
+    final txnsState = ref.watch(transactionsStreamProvider(widget.contact.id));
 
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(contact.name),
-            if (contact.phone != null)
+            Text(widget.contact.name),
+            if (widget.contact.phone != null)
               Text(
-                contact.phone!,
+                widget.contact.phone!,
                 style: const TextStyle(fontSize: 12, color: AppTheme.secondaryText),
               ),
           ],
         ),
         actions: [
+          // Dynamic Month Filter Action
+          txnsState.maybeWhen(
+            data: (txns) {
+              final uniqueMonths = txns
+                  .map((t) => DateTime(t.date.year, t.date.month))
+                  .toSet()
+                  .toList();
+              uniqueMonths.sort((a, b) => b.compareTo(a));
+
+              final filterLabel = _selectedMonth == null
+                  ? 'All'
+                  : DateFormat('MMM-yy').format(_selectedMonth!);
+
+              return Container(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                child: TextButton.icon(
+                  onPressed: () => _showMonthPicker(context, uniqueMonths),
+                  style: TextButton.styleFrom(
+                    backgroundColor: Theme.of(context).brightness == Brightness.dark
+                        ? AppTheme.darkBorder
+                        : AppTheme.lightBorder,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.calendar_month_rounded, size: 14, color: AppTheme.primary),
+                  label: Text(
+                    filterLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : AppTheme.lightTextPrimary,
+                    ),
+                  ),
+                ),
+              );
+            },
+            orElse: () => const SizedBox.shrink(),
+          ),
+          const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.debitRed),
             tooltip: 'Delete Contact',
-            onPressed: () => _confirmDeleteContact(context, ref),
+            onPressed: () => _confirmDeleteContact(context),
           ),
           const SizedBox(width: 8),
         ],
       ),
       body: txnsState.when(
         data: (txns) {
-          final balance = _calculateContactBalance(txns);
+          final lifetimeBalance = _calculateContactBalance(txns);
+
+          // Get dynamic unique months for list filtering
+          final uniqueMonths = txns
+              .map((t) => DateTime(t.date.year, t.date.month))
+              .toSet()
+              .toList();
+          uniqueMonths.sort((a, b) => b.compareTo(a));
+
+          // Filter transactions if a month is selected
+          final filteredTxns = _selectedMonth == null
+              ? txns
+              : txns.where((t) {
+                  return t.date.year == _selectedMonth!.year &&
+                      t.date.month == _selectedMonth!.month;
+                }).toList();
+
+          final displayBalance = _calculateContactBalance(filteredTxns);
 
           return Column(
             children: [
-              // 1. Contact Balance Card Header
+              // 1. Contact Balance Card Header (Shows filtered outstanding balance)
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Container(
                   decoration: AppTheme.glassmorphicBox(
-                    gradient: balance >= 0
-                        ? (balance > 0 ? AppTheme.greenCardGradient : AppTheme.premiumCardGradient)
+                    context: context,
+                    gradient: displayBalance >= 0
+                        ? (displayBalance > 0
+                            ? AppTheme.greenCardGradient
+                            : (Theme.of(context).brightness == Brightness.dark
+                                ? AppTheme.premiumCardGradient
+                                : AppTheme.premiumCardLightGradient))
                         : AppTheme.redCardGradient,
                   ),
                   padding: const EdgeInsets.all(18.0),
@@ -210,9 +399,9 @@ class LedgerScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              balance > 0
+                              displayBalance > 0
                                   ? 'THEY OWE YOU (LENA HAI)'
-                                  : balance < 0
+                                  : displayBalance < 0
                                       ? 'YOU OWE THEM (DENA HAI)'
                                       : 'SETTLED (HISAB BARABAR)',
                               style: const TextStyle(
@@ -224,7 +413,7 @@ class LedgerScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '₹${balance.abs().toStringAsFixed(2)}',
+                              AppTheme.formatAmount(displayBalance.abs()),
                               style: const TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.w900,
@@ -234,9 +423,9 @@ class LedgerScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      if (balance != 0)
+                      if (displayBalance != 0)
                         ElevatedButton.icon(
-                          onPressed: () => _copyPaymentReminder(context, balance),
+                          onPressed: () => _copyPaymentReminder(context, lifetimeBalance),
                           icon: const Icon(Icons.share_rounded, size: 16),
                           label: const Text('Reminder', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(
@@ -253,9 +442,39 @@ class LedgerScreen extends ConsumerWidget {
                 ),
               ),
 
+              // Filter sub-header info text if filtered
+              if (_selectedMonth != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Transactions in ${DateFormat('MMMM yyyy').format(_selectedMonth!)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.secondaryText,
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => setState(() => _selectedMonth = null),
+                        child: const Text(
+                          'Clear Filter',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryLight,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // 2. Chat-feed style transaction ledger
               Expanded(
-                child: txns.isEmpty
+                child: filteredTxns.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -266,22 +485,23 @@ class LedgerScreen extends ConsumerWidget {
                               color: AppTheme.secondaryText.withOpacity(0.5),
                             ),
                             const SizedBox(height: 12),
-                            const Text(
-                              'Koi transaction nahi mila.\nNiche diye buttons se hisab shuru karein!',
+                            Text(
+                              _selectedMonth != null
+                                  ? 'Is mahine me koi transaction nahi mila.'
+                                  : 'Koi transaction nahi mila.\nNiche diye buttons se hisab shuru karein!',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: AppTheme.secondaryText),
+                              style: const TextStyle(color: AppTheme.secondaryText),
                             ),
                           ],
                         ),
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.only(left: 16, right: 16, bottom: 90),
-                        reverse: false, // Normal chronological listing or reverse? Usually reverse is best so new entries appear at the bottom!
-                        // Let's implement lists sorted by date, displaying from oldest at top to newest at bottom so it scrolls like a conversation chat feed.
-                        itemCount: txns.length,
+                        reverse: false,
+                        itemCount: filteredTxns.length,
                         itemBuilder: (context, index) {
-                          // To scroll like chat (oldest first, newest bottom), we reverse index logic
-                          final txn = txns[txns.length - 1 - index];
+                          // Display in descending order (newest first, oldest last)
+                          final txn = filteredTxns[index];
                           final isOutflow = txn.type == 'give' || txn.type == 'pay';
                           final dateStr = DateFormat('dd MMM yyyy').format(txn.date);
                           final syncIcon = txn.isDirty
@@ -293,19 +513,19 @@ class LedgerScreen extends ConsumerWidget {
                           return Align(
                             alignment: isOutflow ? Alignment.centerLeft : Alignment.centerRight,
                             child: InkWell(
+                              onTap: () => _openEditTransactionSheet(context, txn, lifetimeBalance),
                               onLongPress: () => _confirmDeleteTransaction(context, ref, txn),
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(12),
                               child: Container(
-                                margin: const EdgeInsets.symmetric(vertical: 6),
+                                margin: const EdgeInsets.symmetric(vertical: 4),
                                 constraints: BoxConstraints(
                                   maxWidth: MediaQuery.of(context).size.width * 0.75,
                                 ),
                                 decoration: AppTheme.glassmorphicBox(
-                                  color: isOutflow
-                                      ? AppTheme.debitRedBg.withOpacity(0.2)
-                                      : AppTheme.creditGreenBg.withOpacity(0.2),
+                                  context: context,
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                padding: const EdgeInsets.all(14),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 child: Column(
                                   crossAxisAlignment:
                                       isOutflow ? CrossAxisAlignment.start : CrossAxisAlignment.end,
@@ -314,48 +534,40 @@ class LedgerScreen extends ConsumerWidget {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                          '₹${txn.amount.toStringAsFixed(2)}',
+                                          AppTheme.formatAmount(txn.amount),
                                           style: TextStyle(
-                                            fontSize: 18,
+                                            fontSize: 16,
                                             fontWeight: FontWeight.w900,
                                             color: isOutflow ? AppTheme.debitRed : AppTheme.creditGreen,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        // Label matching action
-                                        Text(
-                                          txn.type == 'give'
-                                              ? '(Gave)'
-                                              : txn.type == 'pay'
-                                                  ? '(Paid)'
-                                                  : txn.type == 'receive'
-                                                      ? '(Got)'
-                                                      : '(Took)',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: isOutflow
-                                                ? AppTheme.debitRed.withOpacity(0.6)
-                                                : AppTheme.creditGreen.withOpacity(0.6),
                                           ),
                                         ),
                                       ],
                                     ),
                                     if (txn.description != null) ...[
-                                      const SizedBox(height: 6),
+                                      const SizedBox(height: 4),
                                       Text(
                                         txn.description!,
-                                        style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.9)),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Theme.of(context).brightness == Brightness.dark
+                                              ? Colors.white.withOpacity(0.9)
+                                              : Colors.black87,
+                                        ),
                                       ),
                                     ],
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 4),
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       mainAxisAlignment: MainAxisAlignment.end,
                                       children: [
                                         Text(
                                           dateStr,
-                                          style: const TextStyle(fontSize: 9, color: AppTheme.secondaryText),
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            color: Theme.of(context).brightness == Brightness.dark
+                                                ? AppTheme.secondaryText
+                                                : AppTheme.lightTextSecondary,
+                                          ),
                                         ),
                                         const SizedBox(width: 4),
                                         syncIcon,
@@ -378,7 +590,7 @@ class LedgerScreen extends ConsumerWidget {
       // 3. Bottom persistent dual buttons: "Maine Diye" & "Maine Liye"
       bottomSheet: Consumer(
         builder: (context, ref, child) {
-          final txnsData = ref.watch(transactionsStreamProvider(contact.id));
+          final txnsData = ref.watch(transactionsStreamProvider(widget.contact.id));
           final double balance = txnsData.when(
             data: (txns) => _calculateContactBalance(txns),
             loading: () => 0.0,
@@ -386,7 +598,7 @@ class LedgerScreen extends ConsumerWidget {
           );
 
           return Container(
-            color: AppTheme.darkBg,
+            color: Theme.of(context).scaffoldBackgroundColor,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [

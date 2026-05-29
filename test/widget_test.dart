@@ -1,30 +1,31 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:kitnabacha/core/providers.dart';
+import 'package:kitnabacha/core/sync/sync_engine.dart';
 import 'package:kitnabacha/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('MyApp renders dashboard successfully for guest user', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateProvider.overrideWith((ref) => Stream.value(null)),
+          userIdProvider.overrideWithValue('guest'),
+          contactsStreamProvider('guest').overrideWith((ref) => const Stream.empty()),
+          allTransactionsStreamProvider('guest').overrideWith((ref) => const Stream.empty()),
+          syncStatusProvider.overrideWith((ref) => SyncStatus.synced),
+        ],
+        child: const MyApp(),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Let the streams and frames resolve
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that MaterialApp and title are rendered
+    expect(find.byType(MaterialApp), findsOneWidget);
+    expect(find.text('कितना बचा ?'), findsOneWidget);
+    expect(find.text('Add Contact'), findsOneWidget);
   });
 }

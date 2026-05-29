@@ -151,11 +151,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: Container(
-            decoration: const BoxDecoration(
-              color: AppTheme.darkCard,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               border: Border(
-                top: BorderSide(color: AppTheme.darkBorder, width: 1),
+                top: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppTheme.darkBorder
+                      : AppTheme.lightBorder,
+                  width: 1,
+                ),
               ),
             ),
             padding: const EdgeInsets.all(24),
@@ -270,11 +275,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: Container(
-            decoration: const BoxDecoration(
-              color: AppTheme.darkCard,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               border: Border(
-                top: BorderSide(color: AppTheme.darkBorder, width: 1),
+                top: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppTheme.darkBorder
+                      : AppTheme.lightBorder,
+                  width: 1,
+                ),
               ),
             ),
             padding: const EdgeInsets.only(top: 8),
@@ -346,8 +356,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     sliver: SliverToBoxAdapter(
                       child: Container(
                         decoration: AppTheme.glassmorphicBox(
+                          context: context,
                           gradient: net >= 0
-                              ? (net > 0 ? AppTheme.greenCardGradient : AppTheme.premiumCardGradient)
+                              ? (net > 0
+                                  ? AppTheme.greenCardGradient
+                                  : (Theme.of(context).brightness == Brightness.dark
+                                      ? AppTheme.premiumCardGradient
+                                      : AppTheme.premiumCardLightGradient))
                               : AppTheme.redCardGradient,
                         ),
                         padding: const EdgeInsets.all(24.0),
@@ -364,7 +379,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              '₹${net.abs().toStringAsFixed(2)}',
+                              AppTheme.formatAmount(net.abs()),
                               style: const TextStyle(
                                 fontSize: 36,
                                 fontWeight: FontWeight.w900,
@@ -399,7 +414,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '₹${receivable.toStringAsFixed(2)}',
+                                      AppTheme.formatAmount(receivable),
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -421,7 +436,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '₹${payable.toStringAsFixed(2)}',
+                                      AppTheme.formatAmount(payable),
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -449,13 +464,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(16),
                             decoration: AppTheme.glassmorphicBox(
+                              context: context,
                               color: AppTheme.warningOrange.withOpacity(0.08),
                             ),
                             child: Row(
                               children: [
                                 const Icon(Icons.cloud_off_rounded, color: AppTheme.warningOrange, size: 24),
                                 const SizedBox(width: 14),
-                                const Expanded(
+                                Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
@@ -464,14 +480,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 14,
-                                          color: Colors.white,
+                                          color: Theme.of(context).brightness == Brightness.dark
+                                              ? Colors.white
+                                              : AppTheme.lightTextPrimary,
                                         ),
                                       ),
                                       SizedBox(height: 2),
                                       Text(
                                         'Save your ledger to the cloud to prevent data loss.',
                                         style: TextStyle(
-                                          color: AppTheme.secondaryText,
+                                          color: Theme.of(context).brightness == Brightness.dark
+                                              ? AppTheme.secondaryText
+                                              : AppTheme.lightTextSecondary,
                                           fontSize: 11,
                                         ),
                                       ),
@@ -509,7 +529,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         onChanged: (val) => setState(() => _searchQuery = val),
                         decoration: InputDecoration(
                           hintText: 'Search contacts by name or phone...',
-                          prefixIcon: const Icon(Icons.search, color: AppTheme.secondaryText),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? AppTheme.secondaryText
+                                : AppTheme.lightTextSecondary,
+                          ),
                           suffixIcon: _searchQuery.isNotEmpty
                               ? IconButton(
                                   icon: const Icon(Icons.clear),
@@ -525,15 +550,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
 
                   // 3. Contacts Header
-                  const SliverPadding(
-                    padding: EdgeInsets.only(left: 20, right: 20, top: 24, bottom: 8),
+                  SliverPadding(
+                    padding: const EdgeInsets.only(left: 20, right: 20, top: 24, bottom: 8),
                     sliver: SliverToBoxAdapter(
                       child: Text(
                         'MY CONTACTS',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          color: AppTheme.secondaryText,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? AppTheme.secondaryText
+                              : AppTheme.lightTextSecondary,
                           letterSpacing: 1.5,
                         ),
                       ),
@@ -602,14 +629,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   },
                                   borderRadius: BorderRadius.circular(16),
                                   child: Container(
-                                    decoration: AppTheme.glassmorphicBox(),
+                                    decoration: AppTheme.glassmorphicBox(context: context),
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                     child: Row(
                                       children: [
                                         // Contact Initials Avatar
                                         CircleAvatar(
-                                          backgroundColor: AppTheme.primary.withOpacity(0.2),
-                                          foregroundColor: AppTheme.primaryLight,
+                                          backgroundColor: Theme.of(context).brightness == Brightness.dark
+                                              ? AppTheme.primary.withOpacity(0.2)
+                                              : AppTheme.primary.withOpacity(0.12),
+                                          foregroundColor: Theme.of(context).brightness == Brightness.dark
+                                              ? AppTheme.primaryLight
+                                              : AppTheme.primary,
                                           radius: 22,
                                           child: Text(
                                             contact.name.trim().isNotEmpty
@@ -630,19 +661,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                             children: [
                                               Text(
                                                 contact.name,
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 16,
                                                   fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
+                                                  color: Theme.of(context).brightness == Brightness.dark
+                                                      ? Colors.white
+                                                      : AppTheme.lightTextPrimary,
                                                 ),
                                               ),
                                               if (contact.phone != null) ...[
                                                 const SizedBox(height: 2),
                                                 Text(
                                                   contact.phone!,
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     fontSize: 12,
-                                                    color: AppTheme.secondaryText,
+                                                    color: Theme.of(context).brightness == Brightness.dark
+                                                        ? AppTheme.secondaryText
+                                                        : AppTheme.lightTextSecondary,
                                                   ),
                                                 ),
                                               ],
@@ -657,7 +692,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                             Text(
                                               cBalance == 0
                                                   ? 'Settled'
-                                                  : '₹${cBalance.abs().toStringAsFixed(2)}',
+                                                  : AppTheme.formatAmount(cBalance.abs()),
                                               style: TextStyle(
                                                 fontSize: 15,
                                                 fontWeight: FontWeight.bold,
