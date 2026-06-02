@@ -68,6 +68,13 @@ class SyncEngine {
     }
   }
 
+  // Validate that a string is a proper UUID (v4 format)
+  static final _uuidRegex = RegExp(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+    caseSensitive: false,
+  );
+  bool _isValidUuid(String id) => _uuidRegex.hasMatch(id);
+
   // Primary method to trigger synchronization
   Future<void> triggerSync() async {
     if (_isSyncing) return;
@@ -112,13 +119,17 @@ class SyncEngine {
     // Push Contacts
     final dirtyContacts = await db.getDirtyContacts(userId);
     for (final contact in dirtyContacts) {
+      // Skip & hard-delete any legacy rows with non-UUID ids
+      if (!_isValidUuid(contact.id)) {
+        debugPrint('Cleaning up legacy contact with invalid id: ${contact.id}');
+        await db.hardDeleteContact(contact.id);
+        continue;
+      }
       if (contact.isDeleted) {
-        // Delete from server first, then local SQLite hard-delete
         await supabase.from('contacts').delete().eq('id', contact.id);
         await db.hardDeleteContact(contact.id);
         debugPrint('Pushed deleted contact: ${contact.id}');
       } else {
-        // Upsert to server
         await supabase.from('contacts').upsert({
           'id': contact.id,
           'user_id': contact.userId,
@@ -128,7 +139,6 @@ class SyncEngine {
           'updated_at': contact.updatedAt.toIso8601String(),
           'is_deleted': false,
         });
-        // Clear local dirty flag
         await db.upsertContact(contact.copyWith(isDirty: false));
         debugPrint('Pushed upserted contact: ${contact.name}');
       }
@@ -138,13 +148,17 @@ class SyncEngine {
     // Push Transactions
     final dirtyTxns = await db.getDirtyTransactions(userId);
     for (final txn in dirtyTxns) {
+      // Skip & hard-delete any legacy rows with non-UUID ids (e.g. 'expense_categories_meta')
+      if (!_isValidUuid(txn.id) || !_isValidUuid(txn.contactId)) {
+        debugPrint('Cleaning up legacy transaction with invalid id: ${txn.id}');
+        await db.hardDeleteTransaction(txn.id);
+        continue;
+      }
       if (txn.isDeleted) {
-        // Delete from server first, then local SQLite hard-delete
         await supabase.from('transactions').delete().eq('id', txn.id);
         await db.hardDeleteTransaction(txn.id);
         debugPrint('Pushed deleted transaction: ${txn.id}');
       } else {
-        // Upsert to server
         await supabase.from('transactions').upsert({
           'id': txn.id,
           'contact_id': txn.contactId,
@@ -157,9 +171,65 @@ class SyncEngine {
           'updated_at': txn.updatedAt.toIso8601String(),
           'is_deleted': false,
         });
-        // Clear local dirty flag
         await db.upsertTransaction(txn.copyWith(isDirty: false));
         debugPrint('Pushed upserted transaction: ${txn.id}');
+      }
+    }
+
+    debugPrint('Push Phase: Syncing expense categories...');
+    // Push Expense Categories
+    final dirtyExpenseCategories = await db.getDirtyExpenseCategories(userId);
+    for (final cat in dirtyExpenseCategories) {
+      if (cat.isDeleted) {
+        await supabase.from('expense_categories').delete().eq('id', cat.id);
+        await db.hardDeleteExpenseCategory(cat.id);
+        debugPrint('Pushed deleted expense category: ${cat.id}');
+      } else {
+        List<String> subs = [];
+        try {
+          final List<dynamic> parsed = jsonDecode(cat.subCategories);
+          subs = parsed.map((e) => e.toString()).toList();
+        } catch (_) {}
+
+        await supabase.from('expense_categories').upsert({
+          'id': cat.id,
+          'user_id': cat.userId,
+          'name': cat.name,
+          'icon': cat.icon,
+          'color': cat.color,
+          'sub_categories': subs,
+          'created_at': cat.createdAt.toIso8601String(),
+          'updated_at': cat.updatedAt.toIso8601String(),
+          'is_deleted': false,
+        });
+        await db.upsertExpenseCategory(cat.copyWith(isDirty: false));
+        debugPrint('Pushed upserted expense category: ${cat.name}');
+      }
+    }
+
+    debugPrint('Push Phase: Syncing expenses...');
+    // Push Expenses
+    final dirtyExpenses = await db.getDirtyExpenses(userId);
+    for (final exp in dirtyExpenses) {
+      if (exp.isDeleted) {
+        await supabase.from('expenses').delete().eq('id', exp.id);
+        await db.hardDeleteExpense(exp.id);
+        debugPrint('Pushed deleted expense: ${exp.id}');
+      } else {
+        await supabase.from('expenses').upsert({
+          'id': exp.id,
+          'user_id': exp.userId,
+          'category_id': exp.categoryId,
+          'sub_category': exp.subCategory,
+          'amount': exp.amount,
+          'remarks': exp.remarks,
+          'date': exp.date.toIso8601String(),
+          'created_at': exp.createdAt.toIso8601String(),
+          'updated_at': exp.updatedAt.toIso8601String(),
+          'is_deleted': false,
+        });
+        await db.upsertExpense(exp.copyWith(isDirty: false));
+        debugPrint('Pushed upserted expense: ${exp.id}');
       }
     }
   }
@@ -189,9 +259,7 @@ class SyncEngine {
 
       final local = await db.getContactById(id);
       if (local != null) {
-        // Conflict check
         if (local.isDirty) {
-          // Last Write Wins (LWW) conflict resolution
           if (remoteUpdatedAt.isAfter(local.updatedAt)) {
             if (isRemoteDeleted) {
               await db.hardDeleteContact(id);
@@ -212,7 +280,6 @@ class SyncEngine {
             debugPrint('Conflict resolved (local won) for contact: $id');
           }
         } else {
-          // Local is not dirty, simply update/delete based on server
           if (isRemoteDeleted) {
             await db.hardDeleteContact(id);
           } else {
@@ -229,7 +296,6 @@ class SyncEngine {
           }
         }
       } else if (!isRemoteDeleted) {
-        // Does not exist locally, download it
         await db.upsertContact(Contact(
           id: id,
           userId: userId,
@@ -262,12 +328,9 @@ class SyncEngine {
         newLastSync = remoteUpdatedAt;
       }
 
-      // Check if contact exists locally. If not, we might fail foreign key constraint.
-      // So fetch/upsert the contact metadata first if needed.
       final contactId = remote['contact_id'] as String;
       final localContact = await db.getContactById(contactId);
       if (localContact == null) {
-        // Fetch contact from server
         try {
           final cRes = await supabase.from('contacts').select().eq('id', contactId).maybeSingle();
           if (cRes != null) {
@@ -284,12 +347,10 @@ class SyncEngine {
           }
         } catch (e) {
           debugPrint('Failed to fetch contact $contactId for transaction: $e');
-          continue; // Skip transaction if parent contact cannot be added
+          continue;
         }
       }
 
-      // Check transaction local model
-      // Note: Drift class name is TransactionModel (mapping table Transactions)
       final localTxn = await (db.select(db.transactions)..where((t) => t.id.equals(id))).getSingleOrNull();
       if (localTxn != null) {
         if (localTxn.isDirty) {
@@ -349,6 +410,192 @@ class SyncEngine {
           isDeleted: false,
         ));
         debugPrint('Pulled new transaction: $id');
+      }
+    }
+
+    debugPrint('Pull Phase: Checking expense categories updated after ${lastSync.toIso8601String()}');
+    // Pull Expense Categories
+    final expenseCategoriesResponse = await supabase
+        .from('expense_categories')
+        .select()
+        .eq('user_id', userId)
+        .gt('updated_at', lastSync.toIso8601String());
+
+    final remoteExpenseCategories = List<Map<String, dynamic>>.from(expenseCategoriesResponse);
+    for (final remote in remoteExpenseCategories) {
+      final id = remote['id'] as String;
+      final remoteUpdatedAt = DateTime.parse(remote['updated_at'] as String);
+      final isRemoteDeleted = remote['is_deleted'] as bool? ?? false;
+
+      if (remoteUpdatedAt.isAfter(newLastSync)) {
+        newLastSync = remoteUpdatedAt;
+      }
+
+      final List<dynamic> subs = remote['sub_categories'] as List<dynamic>? ?? [];
+      final subCategoriesJson = jsonEncode(subs.map((e) => e.toString()).toList());
+
+      final local = await db.getExpenseCategoryById(id);
+      if (local != null) {
+        if (local.isDirty) {
+          if (remoteUpdatedAt.isAfter(local.updatedAt)) {
+            if (isRemoteDeleted) {
+              await db.hardDeleteExpenseCategory(id);
+            } else {
+              await db.upsertExpenseCategory(ExpenseCategory(
+                id: id,
+                userId: userId,
+                name: remote['name'] as String,
+                icon: remote['icon'] as String,
+                color: remote['color'] as String,
+                subCategories: subCategoriesJson,
+                createdAt: DateTime.parse(remote['created_at'] as String),
+                updatedAt: remoteUpdatedAt,
+                isDirty: false,
+                isDeleted: false,
+              ));
+            }
+            debugPrint('Conflict resolved (server won) for expense category: $id');
+          } else {
+            debugPrint('Conflict resolved (local won) for expense category: $id');
+          }
+        } else {
+          if (isRemoteDeleted) {
+            await db.hardDeleteExpenseCategory(id);
+          } else {
+            await db.upsertExpenseCategory(ExpenseCategory(
+              id: id,
+              userId: userId,
+              name: remote['name'] as String,
+              icon: remote['icon'] as String,
+              color: remote['color'] as String,
+              subCategories: subCategoriesJson,
+              createdAt: DateTime.parse(remote['created_at'] as String),
+              updatedAt: remoteUpdatedAt,
+              isDirty: false,
+              isDeleted: false,
+            ));
+          }
+        }
+      } else if (!isRemoteDeleted) {
+        await db.upsertExpenseCategory(ExpenseCategory(
+          id: id,
+          userId: userId,
+          name: remote['name'] as String,
+          icon: remote['icon'] as String,
+          color: remote['color'] as String,
+          subCategories: subCategoriesJson,
+          createdAt: DateTime.parse(remote['created_at'] as String),
+          updatedAt: remoteUpdatedAt,
+          isDirty: false,
+          isDeleted: false,
+        ));
+        debugPrint('Pulled new expense category: $id');
+      }
+    }
+
+    debugPrint('Pull Phase: Checking expenses updated after ${lastSync.toIso8601String()}');
+    // Pull Expenses
+    final expensesResponse = await supabase
+        .from('expenses')
+        .select()
+        .eq('user_id', userId)
+        .gt('updated_at', lastSync.toIso8601String());
+
+    final remoteExpenses = List<Map<String, dynamic>>.from(expensesResponse);
+    for (final remote in remoteExpenses) {
+      final id = remote['id'] as String;
+      final remoteUpdatedAt = DateTime.parse(remote['updated_at'] as String);
+      final isRemoteDeleted = remote['is_deleted'] as bool? ?? false;
+
+      if (remoteUpdatedAt.isAfter(newLastSync)) {
+        newLastSync = remoteUpdatedAt;
+      }
+
+      final categoryId = remote['category_id'] as String;
+      final localCategory = await db.getExpenseCategoryById(categoryId);
+      if (localCategory == null) {
+        try {
+          final catRes = await supabase.from('expense_categories').select().eq('id', categoryId).maybeSingle();
+          if (catRes != null) {
+            final List<dynamic> subs = catRes['sub_categories'] as List<dynamic>? ?? [];
+            await db.upsertExpenseCategory(ExpenseCategory(
+              id: categoryId,
+              userId: userId,
+              name: catRes['name'] as String,
+              icon: catRes['icon'] as String,
+              color: catRes['color'] as String,
+              subCategories: jsonEncode(subs.map((e) => e.toString()).toList()),
+              createdAt: DateTime.parse(catRes['created_at'] as String),
+              updatedAt: DateTime.parse(catRes['updated_at'] as String),
+              isDirty: false,
+              isDeleted: false,
+            ));
+          }
+        } catch (e) {
+          debugPrint('Failed to pull parent category for expense: $e');
+          continue;
+        }
+      }
+
+      final localExp = await (db.select(db.expenses)..where((t) => t.id.equals(id))).getSingleOrNull();
+      if (localExp != null) {
+        if (localExp.isDirty) {
+          if (remoteUpdatedAt.isAfter(localExp.updatedAt)) {
+            if (isRemoteDeleted) {
+              await db.hardDeleteExpense(id);
+            } else {
+              await db.upsertExpense(Expense(
+                id: id,
+                userId: userId,
+                categoryId: categoryId,
+                subCategory: remote['sub_category'] as String,
+                amount: (remote['amount'] as num).toDouble(),
+                remarks: remote['remarks'] as String?,
+                date: DateTime.parse(remote['date'] as String),
+                createdAt: DateTime.parse(remote['created_at'] as String),
+                updatedAt: remoteUpdatedAt,
+                isDirty: false,
+                isDeleted: false,
+              ));
+            }
+            debugPrint('Conflict resolved (server won) for expense: $id');
+          } else {
+            debugPrint('Conflict resolved (local won) for expense: $id');
+          }
+        } else {
+          if (isRemoteDeleted) {
+            await db.hardDeleteExpense(id);
+          } else {
+            await db.upsertExpense(Expense(
+              id: id,
+              userId: userId,
+              categoryId: categoryId,
+              subCategory: remote['sub_category'] as String,
+              amount: (remote['amount'] as num).toDouble(),
+              remarks: remote['remarks'] as String?,
+              date: DateTime.parse(remote['date'] as String),
+              createdAt: DateTime.parse(remote['created_at'] as String),
+              updatedAt: remoteUpdatedAt,
+              isDirty: false,
+              isDeleted: false,
+            ));
+          }
+        }
+      } else if (!isRemoteDeleted) {
+        await db.upsertExpense(Expense(
+          id: id,
+          userId: userId,
+          categoryId: categoryId,
+          subCategory: remote['sub_category'] as String,
+          amount: (remote['amount'] as num).toDouble(),
+          remarks: remote['remarks'] as String?,
+          date: DateTime.parse(remote['date'] as String),
+          createdAt: DateTime.parse(remote['created_at'] as String),
+          updatedAt: remoteUpdatedAt,
+          isDirty: false,
+          isDeleted: false,
+        ));
+        debugPrint('Pulled new expense: $id');
       }
     }
 
