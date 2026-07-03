@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:drift/drift.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'database/local_db.dart';
 import 'sync/sync_engine.dart';
 import 'pocketbase/pocketbase_client.dart';
@@ -111,16 +111,14 @@ class AuthNotifier extends AsyncNotifier<RecordModel?> {
   Future<void> login(String email, String password) async {
     state = const AsyncValue.loading();
     try {
-      debugPrint('[Auth] Login attempt: $email');
       final authRes = await PocketBaseService.signIn(email: email, password: password);
-      debugPrint('[Auth] Login succeeded, user: ${authRes.record.id}');
       final newUserId = authRes.record.id;
       if (newUserId.isNotEmpty) {
         await _migrateGuestData(newUserId);
       }
       state = AsyncValue.data(authRes.record);
     } catch (e, stack) {
-      debugPrint('[Auth] Login ERROR: $e');
+      Sentry.captureException(e, stackTrace: stack);
       state = AsyncValue.error(e, stack);
     }
   }
@@ -128,19 +126,14 @@ class AuthNotifier extends AsyncNotifier<RecordModel?> {
   Future<void> signup(String email, String password) async {
     state = const AsyncValue.loading();
     try {
-      debugPrint('[Auth] Starting signup: $email');
       final record = await PocketBaseService.signUp(email: email, password: password);
-      debugPrint('[Auth] Signup create succeeded, record id: ${record.id}');
       final newUserId = record.id;
       if (newUserId.isNotEmpty) {
-        debugPrint('[Auth] Migrating guest data to: $newUserId');
         await _migrateGuestData(newUserId);
       }
       state = AsyncValue.data(record);
-      debugPrint('[Auth] Signup completed successfully');
     } catch (e, stack) {
-      debugPrint('[Auth] Signup ERROR: $e');
-      debugPrint('[Auth] Stack trace: $stack');
+      Sentry.captureException(e, stackTrace: stack);
       state = AsyncValue.error(e, stack);
     }
   }
@@ -190,12 +183,10 @@ class AuthNotifier extends AsyncNotifier<RecordModel?> {
   Future<void> logout() async {
     state = const AsyncValue.loading();
     try {
-      debugPrint('[Auth] Logging out');
       await PocketBaseService.signOut();
       state = const AsyncValue.data(null);
-      debugPrint('[Auth] Logout completed');
     } catch (e, stack) {
-      debugPrint('[Auth] Logout ERROR: $e');
+      Sentry.captureException(e, stackTrace: stack);
       state = AsyncValue.error(e, stack);
     }
   }

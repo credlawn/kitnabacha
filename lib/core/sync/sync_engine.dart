@@ -53,7 +53,7 @@ class SyncEngine {
         }
       }
     } catch (e) {
-      debugPrint('Error reading sync metadata: $e');
+      Sentry.captureException(e);
     }
     return DateTime.fromMillisecondsSinceEpoch(0);
   }
@@ -69,7 +69,7 @@ class SyncEngine {
       json[userId] = time.toIso8601String();
       await file.writeAsString(jsonEncode(json));
     } catch (e) {
-      debugPrint('Error saving sync metadata: $e');
+      Sentry.captureException(e);
     }
   }
 
@@ -91,7 +91,7 @@ class SyncEngine {
         await pb.collection(collection).create(body: {...body, 'id': id});
         return true;
       } catch (e) {
-        debugPrint('_upsert failed for $collection/$id: $e');
+        Sentry.captureException(e);
         return false;
       }
     }
@@ -114,24 +114,21 @@ class SyncEngine {
 
     _isSyncing = true;
     statusNotifier.value = SyncStatus.syncing;
-    debugPrint('=== Sync Started ===');
 
     try {
       // Refresh auth token to ensure it's valid before any API calls
       try {
         await pb.collection('users').authRefresh();
-        debugPrint('Auth token refreshed successfully');
       } catch (e) {
-        debugPrint('Auth refresh failed (non-fatal): $e');
+        Sentry.captureException(e);
       }
 
       await _pushPhase(userId);
       await _pullPhase(userId);
 
       statusNotifier.value = SyncStatus.synced;
-      debugPrint('=== Sync Succeeded ===');
     } catch (e, stack) {
-      debugPrint('Sync failed: $e\n$stack');
+      Sentry.captureException(e, stackTrace: stack);
       statusNotifier.value = SyncStatus.error;
     } finally {
       _isSyncing = false;
@@ -139,7 +136,6 @@ class SyncEngine {
   }
 
   Future<void> _pushPhase(String userId) async {
-    debugPrint('Push Phase: Syncing contacts...');
     final dirtyContacts = await db.getDirtyContacts(userId);
     for (final contact in dirtyContacts) {
       if (contact.isDeleted) {
@@ -149,7 +145,6 @@ class SyncEngine {
           Sentry.captureException(e, stackTrace: stack);
         }
         await db.hardDeleteContact(contact.id);
-        debugPrint('Pushed deleted contact: ${contact.id}');
       } else {
         if (await _upsert('contacts', contact.id, {
           'user_id': contact.userId,
@@ -160,12 +155,10 @@ class SyncEngine {
           'is_deleted': false,
         })) {
           await db.upsertContact(contact.copyWith(isDirty: false));
-          debugPrint('Pushed upserted contact: ${contact.name}');
         }
       }
     }
 
-    debugPrint('Push Phase: Syncing transactions...');
     final dirtyTxns = await db.getDirtyTransactions(userId);
     for (final txn in dirtyTxns) {
       if (txn.isDeleted) {
@@ -175,7 +168,6 @@ class SyncEngine {
           Sentry.captureException(e, stackTrace: stack);
         }
         await db.hardDeleteTransaction(txn.id);
-        debugPrint('Pushed deleted transaction: ${txn.id}');
       } else {
         if (await _upsert('transactions', txn.id, {
           'contact_id': txn.contactId,
@@ -189,12 +181,10 @@ class SyncEngine {
           'is_deleted': false,
         })) {
           await db.upsertTransaction(txn.copyWith(isDirty: false));
-          debugPrint('Pushed upserted transaction: ${txn.id}');
         }
       }
     }
 
-    debugPrint('Push Phase: Syncing expense categories...');
     final dirtyExpenseCategories = await db.getDirtyExpenseCategories(userId);
     for (final cat in dirtyExpenseCategories) {
       if (cat.isDeleted) {
@@ -204,7 +194,6 @@ class SyncEngine {
           Sentry.captureException(e, stackTrace: stack);
         }
         await db.hardDeleteExpenseCategory(cat.id);
-        debugPrint('Pushed deleted expense category: ${cat.id}');
       } else {
         List<String> subs = [];
         try {
@@ -225,12 +214,10 @@ class SyncEngine {
           'is_deleted': false,
         })) {
           await db.upsertExpenseCategory(cat.copyWith(isDirty: false));
-          debugPrint('Pushed upserted expense category: ${cat.name}');
         }
       }
     }
 
-    debugPrint('Push Phase: Syncing expenses...');
     final dirtyExpenses = await db.getDirtyExpenses(userId);
     for (final exp in dirtyExpenses) {
       if (exp.isDeleted) {
@@ -240,7 +227,6 @@ class SyncEngine {
           Sentry.captureException(e, stackTrace: stack);
         }
         await db.hardDeleteExpense(exp.id);
-        debugPrint('Pushed deleted expense: ${exp.id}');
       } else {
         if (await _upsert('expenses', exp.id, {
           'user_id': exp.userId,
@@ -254,7 +240,6 @@ class SyncEngine {
           'is_deleted': false,
         })) {
           await db.upsertExpense(exp.copyWith(isDirty: false));
-          debugPrint('Pushed upserted expense: ${exp.id}');
         }
       }
     }
@@ -264,7 +249,6 @@ class SyncEngine {
     final lastSync = await getLastSyncTime(userId);
     DateTime newLastSync = lastSync;
 
-    debugPrint('Pull Phase: Checking contacts...');
     final contactsResponse = await pb.collection('contacts').getFullList(
       filter: 'user_id="$userId" && updated_at>"${lastSync.toIso8601String()}"',
     );
@@ -292,9 +276,7 @@ class SyncEngine {
                 isDirty: false, isDeleted: false,
               ));
             }
-            debugPrint('Conflict resolved (server won) for contact: $id');
           } else {
-            debugPrint('Conflict resolved (local won) for contact: $id');
           }
         } else {
           if (isRemoteDeleted) {
@@ -313,11 +295,9 @@ class SyncEngine {
           createdAt: _dt(d, 'created_at'), updatedAt: remoteUpdatedAt,
           isDirty: false, isDeleted: false,
         ));
-        debugPrint('Pulled new contact: $id');
       }
     }
 
-    debugPrint('Pull Phase: Checking transactions...');
     final txnsResponse = await pb.collection('transactions').getFullList(
       filter: 'user_id="$userId" && updated_at>"${lastSync.toIso8601String()}"',
     );
@@ -343,7 +323,7 @@ class SyncEngine {
             isDirty: false, isDeleted: false,
           ));
         } else {
-          debugPrint('Failed to fetch contact $contactId for transaction');
+          Sentry.captureException(Exception('Failed to fetch contact $contactId for transaction'));
           continue;
         }
       }
@@ -362,9 +342,7 @@ class SyncEngine {
                 isDirty: false, isDeleted: false,
               ));
             }
-            debugPrint('Conflict resolved (server won) for transaction: $id');
           } else {
-            debugPrint('Conflict resolved (local won) for transaction: $id');
           }
         } else {
           if (isRemoteDeleted) {
@@ -385,11 +363,9 @@ class SyncEngine {
           date: _dt(d, 'date'), createdAt: _dt(d, 'created_at'), updatedAt: remoteUpdatedAt,
           isDirty: false, isDeleted: false,
         ));
-        debugPrint('Pulled new transaction: $id');
       }
     }
 
-    debugPrint('Pull Phase: Checking expense categories...');
     final expenseCategoriesResponse = await pb.collection('expense_categories').getFullList(
       filter: 'user_id="$userId" && updated_at>"${lastSync.toIso8601String()}"',
     );
@@ -422,9 +398,7 @@ class SyncEngine {
                 isDirty: false, isDeleted: false,
               ));
             }
-            debugPrint('Conflict resolved (server won) for expense category: $id');
           } else {
-            debugPrint('Conflict resolved (local won) for expense category: $id');
           }
         } else {
           if (isRemoteDeleted) {
@@ -447,11 +421,9 @@ class SyncEngine {
           createdAt: _dt(d, 'created_at'), updatedAt: remoteUpdatedAt,
           isDirty: false, isDeleted: false,
         ));
-        debugPrint('Pulled new expense category: $id');
       }
     }
 
-    debugPrint('Pull Phase: Checking expenses...');
     final expensesResponse = await pb.collection('expenses').getFullList(
       filter: 'user_id="$userId" && updated_at>"${lastSync.toIso8601String()}"',
     );
@@ -480,7 +452,7 @@ class SyncEngine {
             isDirty: false, isDeleted: false,
           ));
         } else {
-          debugPrint('Failed to pull parent category for expense');
+          Sentry.captureException(Exception('Failed to pull parent category for expense'));
           continue;
         }
       }
@@ -500,9 +472,7 @@ class SyncEngine {
                 isDirty: false, isDeleted: false,
               ));
             }
-            debugPrint('Conflict resolved (server won) for expense: $id');
           } else {
-            debugPrint('Conflict resolved (local won) for expense: $id');
           }
         } else {
           if (isRemoteDeleted) {
@@ -525,7 +495,6 @@ class SyncEngine {
           createdAt: _dt(d, 'created_at'), updatedAt: remoteUpdatedAt,
           isDirty: false, isDeleted: false,
         ));
-        debugPrint('Pulled new expense: $id');
       }
     }
 
