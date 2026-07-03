@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
-import 'package:drift/drift.dart' hide Column, Table, Row;
+import 'package:drift/drift.dart' hide Column, Table;
 import '../../../core/database/local_db.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
@@ -316,7 +316,7 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
 
                 // Category Selector Dropdown
                 DropdownButtonFormField<ExpenseCategory>(
-                  value: _selectedCategory,
+                  initialValue: _selectedCategory,
                   decoration: const InputDecoration(
                     labelText: 'Category',
                     prefixIcon: Icon(Icons.category_rounded),
@@ -360,7 +360,7 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
                 // Sub-category Selector Dropdown
                 if (currentSubCategories.isNotEmpty)
                   DropdownButtonFormField<String>(
-                    value: currentSubCategories.contains(_selectedSubCategory) ? _selectedSubCategory : null,
+                    initialValue: currentSubCategories.contains(_selectedSubCategory) ? _selectedSubCategory : null,
                     decoration: const InputDecoration(
                       labelText: 'Sub-category',
                       prefixIcon: Icon(Icons.subdirectory_arrow_right_rounded),
@@ -382,8 +382,8 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white.withOpacity(0.03)
-                          : Colors.black.withOpacity(0.03),
+                          ? Colors.white.withValues(alpha: 0.03)
+                          : Colors.black.withValues(alpha: 0.03),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: Theme.of(context).brightness == Brightness.dark
@@ -391,7 +391,7 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
                             : AppTheme.lightBorder,
                       ),
                     ),
-                    child: const Row(
+                      child: Row(
                       children: [
                         Icon(Icons.info_outline_rounded, size: 18, color: AppTheme.secondaryText),
                         const SizedBox(width: 8),

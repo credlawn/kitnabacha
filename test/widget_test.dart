@@ -5,6 +5,11 @@ import 'package:kitnabacha/core/providers.dart';
 import 'package:kitnabacha/core/sync/sync_engine.dart';
 import 'package:kitnabacha/main.dart';
 
+class SyncStatusMock extends SyncStatusNotifier {
+  @override
+  SyncStatus build() => SyncStatus.synced;
+}
+
 void main() {
   testWidgets('MyApp renders dashboard successfully for guest user', (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -14,7 +19,7 @@ void main() {
           userIdProvider.overrideWithValue('guest'),
           contactsStreamProvider('guest').overrideWith((ref) => const Stream.empty()),
           allTransactionsStreamProvider('guest').overrideWith((ref) => const Stream.empty()),
-          syncStatusProvider.overrideWith((ref) => SyncStatus.synced),
+          syncStatusProvider.overrideWith(() => SyncStatusMock()),
         ],
         child: const MyApp(),
       ),

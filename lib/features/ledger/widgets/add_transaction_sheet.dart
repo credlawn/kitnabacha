@@ -218,10 +218,10 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                 textAlign: TextAlign.center,
                 decoration: InputDecoration(
                   hintText: '₹ 0.00',
-                  fillColor: const Color(0xFF1F293D).withOpacity(0.5),
+                  fillColor: const Color(0xFF1F293D).withValues(alpha: 0.5),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: actionColor.withOpacity(0.3)),
+                    borderSide: BorderSide(color: actionColor.withValues(alpha: 0.3)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),

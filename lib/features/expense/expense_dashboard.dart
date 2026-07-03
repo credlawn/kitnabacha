@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -289,8 +288,8 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              const Color(0xFF475569).withOpacity(0.9), // Slate 600
-                              const Color(0xFF334155).withOpacity(0.9), // Slate 700
+                              const Color(0xFF475569).withValues(alpha: 0.9), // Slate 600
+                              const Color(0xFF334155).withValues(alpha: 0.9), // Slate 700
                             ],
                           ),
                         ),
@@ -321,8 +320,8 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              AppTheme.debitRed.withOpacity(0.95),
-                              const Color(0xFFC026D3).withOpacity(0.95), // Deep Magenta-Fuchsia
+                              AppTheme.debitRed.withValues(alpha: 0.95),
+                              const Color(0xFFC026D3).withValues(alpha: 0.95), // Deep Magenta-Fuchsia
                             ],
                           ),
                         ),
@@ -452,7 +451,7 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                                             children: [
                                               CircleAvatar(
                                                 radius: 18,
-                                                backgroundColor: catColor.withOpacity(0.12),
+                                                backgroundColor: catColor.withValues(alpha: 0.12),
                                                 foregroundColor: catColor,
                                                 child: Icon(catIcon, size: 18),
                                               ),
@@ -535,7 +534,7 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                                                         fontSize: 12,
                                                         color: Theme.of(context).brightness == Brightness.dark
                                                             ? Colors.white70
-                                                            : AppTheme.lightTextPrimary.withOpacity(0.8),
+                                                            : AppTheme.lightTextPrimary.withValues(alpha: 0.8),
                                                       ),
                                                     ),
                                                   ],
@@ -584,7 +583,7 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                                     Icon(
                                       Icons.money_off_rounded,
                                       size: 44,
-                                      color: AppTheme.secondaryText.withOpacity(0.5),
+                                      color: AppTheme.secondaryText.withValues(alpha: 0.5),
                                     ),
                                     const SizedBox(height: 12),
                                     const Text(
@@ -643,7 +642,7 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                                           // Category color & icon avatar
                                           CircleAvatar(
                                             radius: 20,
-                                            backgroundColor: catColor.withOpacity(0.12),
+                                            backgroundColor: catColor.withValues(alpha: 0.12),
                                             foregroundColor: catColor,
                                             child: Icon(catIcon, size: 20),
                                           ),

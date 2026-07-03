@@ -106,9 +106,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
+          color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.3), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -241,7 +241,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       // Trigger async sync in the background
                       ref.read(syncEngineProvider).triggerSync();
 
-                      if (mounted) {
+                      if (context.mounted) {
                         Navigator.pop(context);
                       }
                     },
@@ -469,7 +469,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   padding: const EdgeInsets.all(16),
                                   decoration: AppTheme.glassmorphicBox(
                                     context: context,
-                                    color: AppTheme.warningOrange.withOpacity(0.08),
+                                    color: AppTheme.warningOrange.withValues(alpha: 0.08),
                                   ),
                                   child: Row(
                                     children: [
@@ -505,7 +505,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.warningOrange.withOpacity(0.15),
+                                          color: AppTheme.warningOrange.withValues(alpha: 0.15),
                                           borderRadius: BorderRadius.circular(20),
                                         ),
                                         child: const Text(
@@ -586,7 +586,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                               ? Icons.search_off_rounded
                                               : Icons.people_outline_rounded,
                                           size: 48,
-                                          color: AppTheme.secondaryText.withOpacity(0.5),
+                                          color: AppTheme.secondaryText.withValues(alpha: 0.5),
                                         ),
                                         const SizedBox(height: 12),
                                         Text(
@@ -640,8 +640,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                               // Contact Initials Avatar
                                               CircleAvatar(
                                                 backgroundColor: Theme.of(context).brightness == Brightness.dark
-                                                    ? AppTheme.primary.withOpacity(0.2)
-                                                    : AppTheme.primary.withOpacity(0.12),
+                                                    ? AppTheme.primary.withValues(alpha: 0.2)
+                                                    : AppTheme.primary.withValues(alpha: 0.12),
                                                 foregroundColor: Theme.of(context).brightness == Brightness.dark
                                                     ? AppTheme.primaryLight
                                                     : AppTheme.primary,
@@ -715,8 +715,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                                         fontSize: 10,
                                                         fontWeight: FontWeight.bold,
                                                         color: cBalance > 0
-                                                            ? AppTheme.creditGreen.withOpacity(0.7)
-                                                            : AppTheme.debitRed.withOpacity(0.7),
+                                                            ? AppTheme.creditGreen.withValues(alpha: 0.7)
+                                                            : AppTheme.debitRed.withValues(alpha: 0.7),
                                                       ),
                                                     ),
                                                   ],
@@ -783,7 +783,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           backgroundColor: Theme.of(context).brightness == Brightness.dark
               ? AppTheme.darkBg
               : AppTheme.lightBg,
-          indicatorColor: AppTheme.primary.withOpacity(0.15),
+          indicatorColor: AppTheme.primary.withValues(alpha: 0.15),
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.menu_book_rounded),

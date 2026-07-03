@@ -41,8 +41,8 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: primary,
         secondary: primaryLight,
-        background: darkBg,
-        surface: darkCard,
+        surface: darkBg,
+        surfaceContainerHighest: darkCard,
         error: debitRed,
       ),
       appBarTheme: const AppBarTheme(
@@ -97,8 +97,8 @@ class AppTheme {
       colorScheme: const ColorScheme.light(
         primary: primary,
         secondary: primaryLight,
-        background: lightBg,
-        surface: lightCard,
+        surface: lightBg,
+        surfaceContainerHighest: lightCard,
         error: debitRed,
       ),
       appBarTheme: const AppBarTheme(
@@ -184,12 +184,12 @@ class AppTheme {
   // Box shadow for premium glassmorphism elevation (Dark Mode)
   static List<BoxShadow> get premiumShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.3),
+      color: Colors.black.withValues(alpha: 0.3),
       blurRadius: 20,
       offset: const Offset(0, 10),
     ),
     BoxShadow(
-      color: Colors.white.withOpacity(0.02),
+      color: Colors.white.withValues(alpha: 0.02),
       blurRadius: 1,
       offset: const Offset(0, 1),
     ),
@@ -198,12 +198,12 @@ class AppTheme {
   // Box shadow for premium elevation (Light Mode)
   static List<BoxShadow> get premiumLightShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.06),
+      color: Colors.black.withValues(alpha: 0.06),
       blurRadius: 15,
       offset: const Offset(0, 8),
     ),
     BoxShadow(
-      color: Colors.black.withOpacity(0.02),
+      color: Colors.black.withValues(alpha: 0.02),
       blurRadius: 1,
       offset: const Offset(0, 1),
     ),
@@ -218,11 +218,11 @@ class AppTheme {
   }) {
     final isDark = context == null ? true : Theme.of(context).brightness == Brightness.dark;
     return BoxDecoration(
-      color: color ?? (isDark ? darkCard.withOpacity(0.6) : Colors.white.withOpacity(0.85)),
+      color: color ?? (isDark ? darkCard.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.85)),
       borderRadius: borderRadius ?? BorderRadius.circular(16),
       gradient: gradient,
       border: Border.all(
-        color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.08),
+        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
         width: 1,
       ),
       boxShadow: isDark ? premiumShadow : premiumLightShadow,

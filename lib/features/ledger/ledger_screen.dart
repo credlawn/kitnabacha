@@ -38,14 +38,27 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
   }
 
   // Delete Contact confirmation dialog
-  void _confirmDeleteContact(BuildContext context) {
+  Future<void> _confirmDeleteContact(BuildContext context) async {
+    final txns = await ref.read(dbProvider).getActiveTransactionsForContact(widget.contact.id);
+    if (txns > 0) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cannot delete — $txns transaction(s) exist. Delete them first.'),
+          backgroundColor: AppTheme.debitRed,
+        ),
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           backgroundColor: Theme.of(context).cardColor,
           title: const Text('Delete Contact?'),
-          content: Text('Are you sure you want to delete ${widget.contact.name}? All transaction history with them will be deleted.'),
+          content: Text('Are you sure you want to delete "${widget.contact.name}"?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -54,14 +67,12 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
             TextButton(
               onPressed: () async {
                 final db = ref.read(dbProvider);
-                // Perform local soft-delete
                 await db.softDeleteContact(widget.contact.id);
-                // Trigger sync in background
                 ref.read(syncEngineProvider).triggerSync();
                 
                 if (context.mounted) {
-                  Navigator.pop(context); // Close dialog
-                  Navigator.pop(context); // Pop ledger screen back to dashboard
+                  Navigator.pop(context);
+                  Navigator.pop(context);
                 }
               },
               child: const Text('Delete', style: TextStyle(color: AppTheme.debitRed, fontWeight: FontWeight.bold)),
@@ -151,6 +162,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     }
 
     Clipboard.setData(ClipboardData(text: reminderText)).then((_) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Reminder for ${widget.contact.name} copied to clipboard!'),
@@ -482,7 +494,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                             Icon(
                               Icons.history_toggle_off_rounded,
                               size: 48,
-                              color: AppTheme.secondaryText.withOpacity(0.5),
+                              color: AppTheme.secondaryText.withValues(alpha: 0.5),
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -550,7 +562,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Theme.of(context).brightness == Brightness.dark
-                                              ? Colors.white.withOpacity(0.9)
+                                              ? Colors.white.withValues(alpha: 0.9)
                                               : Colors.black87,
                                         ),
                                       ),
@@ -594,7 +606,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
           final double balance = txnsData.when(
             data: (txns) => _calculateContactBalance(txns),
             loading: () => 0.0,
-            error: (_, __) => 0.0,
+            error: (_, _) => 0.0,
           );
 
           return Container(

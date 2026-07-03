@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:drift/drift.dart' show Value;
 import 'package:uuid/uuid.dart';
 import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
@@ -150,11 +149,11 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                                   height: 48,
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? AppTheme.primary.withOpacity(0.15)
+                                        ? AppTheme.primary.withValues(alpha: 0.15)
                                         : Colors.transparent,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: isSelected ? AppTheme.primary : Colors.grey.withOpacity(0.3),
+                                      color: isSelected ? AppTheme.primary : Colors.grey.withValues(alpha: 0.3),
                                       width: isSelected ? 2 : 1,
                                     ),
                                   ),
@@ -225,7 +224,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                           ));
 
                           ref.read(syncEngineProvider).triggerSync();
-                          if (mounted) {
+                          if (context.mounted) {
                             Navigator.pop(context);
                           }
                         },
@@ -303,7 +302,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                   
                   ref.read(syncEngineProvider).triggerSync();
                 }
-                if (mounted) {
+                if (context.mounted) {
                   Navigator.pop(context);
                 }
               },
@@ -317,12 +316,25 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   }
 
   void _deleteCategory(ExpenseCategory category) async {
+    final expenses = await ref.read(dbProvider).getActiveExpensesForCategory(category.id);
+    if (expenses > 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cannot delete — $expenses expense(s) use this category. Remove them first.'),
+          backgroundColor: AppTheme.debitRed,
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Theme.of(context).cardColor,
         title: const Text('Delete Category?'),
-        content: Text('Are you sure you want to delete "${category.name}"? All sub-categories will be deleted.'),
+        content: Text('Are you sure you want to delete "${category.name}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -418,7 +430,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                 decoration: AppTheme.glassmorphicBox(context: context),
                 child: ExpansionTile(
                   leading: CircleAvatar(
-                    backgroundColor: catColor.withOpacity(0.12),
+                    backgroundColor: catColor.withValues(alpha: 0.12),
                     foregroundColor: catColor,
                     child: Icon(catIcon),
                   ),

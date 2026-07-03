@@ -123,7 +123,8 @@ class SyncEngine {
         Sentry.captureException(e);
       }
 
-      await _pushPhase(userId);
+      await _pushDeletes(userId);
+      await _pushUpserts(userId);
       await _pullPhase(userId);
 
       statusNotifier.value = SyncStatus.synced;
@@ -135,112 +136,126 @@ class SyncEngine {
     }
   }
 
-  Future<void> _pushPhase(String userId) async {
+  Future<void> _pushDeletes(String userId) async {
+    final dirtyTxns = await db.getDirtyTransactions(userId);
+    for (final txn in dirtyTxns.where((t) => t.isDeleted)) {
+      try {
+        await pb.collection('transactions').delete(txn.id);
+      } catch (e) {
+        if (e is ClientException && e.statusCode != 404) {
+          Sentry.captureException(e);
+        }
+      }
+      await db.hardDeleteTransaction(txn.id);
+    }
+
     final dirtyContacts = await db.getDirtyContacts(userId);
-    for (final contact in dirtyContacts) {
-      if (contact.isDeleted) {
-        try {
-          await pb.collection('contacts').delete(contact.id);
-        } catch (e, stack) {
-          Sentry.captureException(e, stackTrace: stack);
+    for (final contact in dirtyContacts.where((t) => t.isDeleted)) {
+      try {
+        await pb.collection('contacts').delete(contact.id);
+      } catch (e) {
+        if (e is ClientException && e.statusCode != 404) {
+          Sentry.captureException(e);
         }
-        await db.hardDeleteContact(contact.id);
-      } else {
-        if (await _upsert('contacts', contact.id, {
-          'user_id': contact.userId,
-          'name': contact.name,
-          'phone': contact.phone,
-          'created_at': contact.createdAt.toUtc().toIso8601String(),
-          'updated_at': contact.updatedAt.toUtc().toIso8601String(),
-          'is_deleted': false,
-        })) {
-          await db.upsertContact(contact.copyWith(isDirty: false));
+      }
+      await db.hardDeleteContact(contact.id);
+    }
+
+    final dirtyExpenses = await db.getDirtyExpenses(userId);
+    for (final exp in dirtyExpenses.where((t) => t.isDeleted)) {
+      try {
+        await pb.collection('expenses').delete(exp.id);
+      } catch (e) {
+        if (e is ClientException && e.statusCode != 404) {
+          Sentry.captureException(e);
         }
+      }
+      await db.hardDeleteExpense(exp.id);
+    }
+
+    final dirtyExpenseCategories = await db.getDirtyExpenseCategories(userId);
+    for (final cat in dirtyExpenseCategories.where((t) => t.isDeleted)) {
+      try {
+        await pb.collection('expense_categories').delete(cat.id);
+      } catch (e) {
+        if (e is ClientException && e.statusCode != 404) {
+          Sentry.captureException(e);
+        }
+      }
+      await db.hardDeleteExpenseCategory(cat.id);
+    }
+  }
+
+  Future<void> _pushUpserts(String userId) async {
+    final dirtyContacts = await db.getDirtyContacts(userId);
+    for (final contact in dirtyContacts.where((t) => !t.isDeleted)) {
+      if (await _upsert('contacts', contact.id, {
+        'user_id': contact.userId,
+        'name': contact.name,
+        'phone': contact.phone,
+        'created_at': contact.createdAt.toUtc().toIso8601String(),
+        'updated_at': contact.updatedAt.toUtc().toIso8601String(),
+        'is_deleted': false,
+      })) {
+        await db.upsertContact(contact.copyWith(isDirty: false));
       }
     }
 
     final dirtyTxns = await db.getDirtyTransactions(userId);
-    for (final txn in dirtyTxns) {
-      if (txn.isDeleted) {
-        try {
-          await pb.collection('transactions').delete(txn.id);
-        } catch (e, stack) {
-          Sentry.captureException(e, stackTrace: stack);
-        }
-        await db.hardDeleteTransaction(txn.id);
-      } else {
-        if (await _upsert('transactions', txn.id, {
-          'contact_id': txn.contactId,
-          'user_id': txn.userId,
-          'amount': txn.amount,
-          'type': txn.type,
-          'description': txn.description,
-          'date': txn.date.toIso8601String().split('T')[0],
-          'created_at': txn.createdAt.toUtc().toIso8601String(),
-          'updated_at': txn.updatedAt.toUtc().toIso8601String(),
-          'is_deleted': false,
-        })) {
-          await db.upsertTransaction(txn.copyWith(isDirty: false));
-        }
+    for (final txn in dirtyTxns.where((t) => !t.isDeleted)) {
+      if (await _upsert('transactions', txn.id, {
+        'contact_id': txn.contactId,
+        'user_id': txn.userId,
+        'amount': txn.amount,
+        'type': txn.type,
+        'description': txn.description,
+        'date': txn.date.toIso8601String().split('T')[0],
+        'created_at': txn.createdAt.toUtc().toIso8601String(),
+        'updated_at': txn.updatedAt.toUtc().toIso8601String(),
+        'is_deleted': false,
+      })) {
+        await db.upsertTransaction(txn.copyWith(isDirty: false));
       }
     }
 
     final dirtyExpenseCategories = await db.getDirtyExpenseCategories(userId);
-    for (final cat in dirtyExpenseCategories) {
-      if (cat.isDeleted) {
-        try {
-          await pb.collection('expense_categories').delete(cat.id);
-        } catch (e, stack) {
-          Sentry.captureException(e, stackTrace: stack);
-        }
-        await db.hardDeleteExpenseCategory(cat.id);
-      } else {
-        List<String> subs = [];
-        try {
-          final List<dynamic> parsed = jsonDecode(cat.subCategories);
-          subs = parsed.map((e) => e.toString()).toList();
-        } catch (e, stack) {
-          Sentry.captureException(e, stackTrace: stack);
-        }
+    for (final cat in dirtyExpenseCategories.where((t) => !t.isDeleted)) {
+      List<String> subs = [];
+      try {
+        final List<dynamic> parsed = jsonDecode(cat.subCategories);
+        subs = parsed.map((e) => e.toString()).toList();
+      } catch (e, stack) {
+        Sentry.captureException(e, stackTrace: stack);
+      }
 
-        if (await _upsert('expense_categories', cat.id, {
-          'user_id': cat.userId,
-          'name': cat.name,
-          'icon': cat.icon,
-          'color': cat.color,
-          'sub_categories': subs,
-          'created_at': cat.createdAt.toUtc().toIso8601String(),
-          'updated_at': cat.updatedAt.toUtc().toIso8601String(),
-          'is_deleted': false,
-        })) {
-          await db.upsertExpenseCategory(cat.copyWith(isDirty: false));
-        }
+      if (await _upsert('expense_categories', cat.id, {
+        'user_id': cat.userId,
+        'name': cat.name,
+        'icon': cat.icon,
+        'color': cat.color,
+        'sub_categories': subs,
+        'created_at': cat.createdAt.toUtc().toIso8601String(),
+        'updated_at': cat.updatedAt.toUtc().toIso8601String(),
+        'is_deleted': false,
+      })) {
+        await db.upsertExpenseCategory(cat.copyWith(isDirty: false));
       }
     }
 
     final dirtyExpenses = await db.getDirtyExpenses(userId);
-    for (final exp in dirtyExpenses) {
-      if (exp.isDeleted) {
-        try {
-          await pb.collection('expenses').delete(exp.id);
-        } catch (e, stack) {
-          Sentry.captureException(e, stackTrace: stack);
-        }
-        await db.hardDeleteExpense(exp.id);
-      } else {
-        if (await _upsert('expenses', exp.id, {
-          'user_id': exp.userId,
-          'category_id': exp.categoryId,
-          'sub_category': exp.subCategory,
-          'amount': exp.amount,
-          'remarks': exp.remarks,
-          'date': exp.date.toIso8601String().split('T')[0],
-          'created_at': exp.createdAt.toUtc().toIso8601String(),
-          'updated_at': exp.updatedAt.toUtc().toIso8601String(),
-          'is_deleted': false,
-        })) {
-          await db.upsertExpense(exp.copyWith(isDirty: false));
-        }
+    for (final exp in dirtyExpenses.where((t) => !t.isDeleted)) {
+      if (await _upsert('expenses', exp.id, {
+        'user_id': exp.userId,
+        'category_id': exp.categoryId,
+        'sub_category': exp.subCategory,
+        'amount': exp.amount,
+        'remarks': exp.remarks,
+        'date': exp.date.toIso8601String().split('T')[0],
+        'created_at': exp.createdAt.toUtc().toIso8601String(),
+        'updated_at': exp.updatedAt.toUtc().toIso8601String(),
+        'is_deleted': false,
+      })) {
+        await db.upsertExpense(exp.copyWith(isDirty: false));
       }
     }
   }

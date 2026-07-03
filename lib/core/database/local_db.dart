@@ -78,7 +78,7 @@ class Expenses extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
-  AppDatabase.forTesting(QueryExecutor executor) : super(executor);
+  AppDatabase.forTesting(super.executor);
 
   @override
   int get schemaVersion => 2; // Incremented schema version for migrations
@@ -106,6 +106,13 @@ class AppDatabase extends _$AppDatabase {
     return (select(contacts)..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
+  Future<int> getActiveTransactionsForContact(String contactId) async {
+    final rows = await (select(transactions)
+          ..where((t) => t.contactId.equals(contactId) & t.isDeleted.equals(false)))
+        .get();
+    return rows.length;
+  }
+
   Future<void> upsertContact(Contact contact) async {
     await into(contacts).insertOnConflictUpdate(contact);
   }
@@ -113,12 +120,6 @@ class AppDatabase extends _$AppDatabase {
   Future<void> softDeleteContact(String id) async {
     await (update(contacts)..where((t) => t.id.equals(id))).write(
       const ContactsCompanion(
-        isDeleted: Value(true),
-        isDirty: Value(true),
-      ),
-    );
-    await (update(transactions)..where((t) => t.contactId.equals(id))).write(
-      const TransactionsCompanion(
         isDeleted: Value(true),
         isDirty: Value(true),
       ),
@@ -180,6 +181,13 @@ class AppDatabase extends _$AppDatabase {
     return (select(expenseCategories)..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
+  Future<int> getActiveExpensesForCategory(String categoryId) async {
+    final rows = await (select(expenses)
+          ..where((t) => t.categoryId.equals(categoryId) & t.isDeleted.equals(false)))
+        .get();
+    return rows.length;
+  }
+
   Future<void> upsertExpenseCategory(ExpenseCategory cat) async {
     await into(expenseCategories).insertOnConflictUpdate(cat);
   }
@@ -187,13 +195,6 @@ class AppDatabase extends _$AppDatabase {
   Future<void> softDeleteExpenseCategory(String id) async {
     await (update(expenseCategories)..where((t) => t.id.equals(id))).write(
       const ExpenseCategoriesCompanion(
-        isDeleted: Value(true),
-        isDirty: Value(true),
-      ),
-    );
-    // Also soft-delete all expenses of this category
-    await (update(expenses)..where((t) => t.categoryId.equals(id))).write(
-      const ExpensesCompanion(
         isDeleted: Value(true),
         isDirty: Value(true),
       ),
@@ -242,6 +243,9 @@ LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'kitnabacha.sqlite'));
-    return NativeDatabase.createInBackground(file);
+    return NativeDatabase.createInBackground(
+      file,
+      setup: (db) async => db.execute('PRAGMA foreign_keys = ON'),
+    );
   });
 }
