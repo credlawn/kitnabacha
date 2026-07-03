@@ -50,3 +50,10 @@ app.*.map.json
 .env.development
 .env.production
 .env.staging
+
+# Android signing credentials
+/android/key.properties
+
+# PocketBase runtime data
+backend/pb_data/
+backend/kitnabacha

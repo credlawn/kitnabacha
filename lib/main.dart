@@ -1,28 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'core/providers.dart';
-import 'core/supabase/supabase_config.dart';
+import 'core/pocketbase/pocketbase_client.dart';
 import 'core/theme/app_theme.dart';
 import 'features/dashboard/dashboard_screen.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Supabase configuration
-  try {
-    await Supabase.initialize(
-      url: SupabaseConfig.url,
-      anonKey: SupabaseConfig.anonKey,
-    );
-  } catch (e) {
-    debugPrint('Supabase initialization failed: $e. You must configure your credentials first.');
-  }
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = 'https://575908ba7d8033c116851e541cadb4df@o4511670483550208.ingest.de.sentry.io/4511670489120848';
+      options.tracesSampleRate = 1.0;
+    },
+    appRunner: () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      await PocketBaseService.init();
 
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
+      runApp(
+        const ProviderScope(
+          child: MyApp(),
+        ),
+      );
+    },
   );
 }
 
@@ -70,11 +69,11 @@ class MyApp extends ConsumerWidget {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Please update lib/core/supabase/supabase_config.dart with your self-hosted Supabase URL and Anon Key.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppTheme.secondaryText, fontSize: 13),
-                  ),
+                    const Text(
+                      'Please check your PocketBase server is running and the URL is correct.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppTheme.secondaryText, fontSize: 13),
+                    ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: () {

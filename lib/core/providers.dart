@@ -1,28 +1,31 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:pocketbase/pocketbase.dart';
 import 'package:drift/drift.dart';
 import 'database/local_db.dart';
 import 'sync/sync_engine.dart';
-import 'supabase/supabase_client.dart';
+import 'pocketbase/pocketbase_client.dart';
 
-String _getCategoryDigit(String catId) {
-  switch (catId) {
-    case 'food': return '1';
-    case 'shopping': return '2';
-    case 'transport': return '3';
-    case 'bills': return '4';
-    case 'entertainment': return '5';
-    case 'health': return '6';
-    default: return '7';
-  }
-}
+const _oldIdPrefix = 'c0000000-';
 
 Future<void> initializeExpenseSystem(AppDatabase db, String currentUserId) async {
-  // Check if any expense categories exist for this user
+  if (currentUserId == 'guest') return;
+
   final existingCategories = await (db.select(db.expenseCategories)..where((t) => t.userId.equals(currentUserId))).get();
-  if (existingCategories.isEmpty) {
+
+  // Migrate old-format IDs (c0000000-... or guest-...) to new userId-prefixed format
+  final oldFormats = existingCategories.where((c) => c.id.startsWith(_oldIdPrefix) || c.id.startsWith('guest-')).toList();
+  if (oldFormats.isNotEmpty) {
+    for (final cat in oldFormats) {
+      await db.hardDeleteExpenseCategory(cat.id);
+    }
+  }
+
+  // Re-check: re-read after migration deletions
+  final remaining = await (db.select(db.expenseCategories)..where((t) => t.userId.equals(currentUserId))).get();
+  if (remaining.isEmpty) {
     final defaultCategories = [
       {"id": "food", "name": "Food & Dining", "icon": "restaurant_rounded", "color": "#FF9F43", "sub": ["Groceries", "Snacks", "Restaurants", "Chai & Coffee"]},
       {"id": "shopping", "name": "Shopping", "icon": "shopping_bag_rounded", "color": "#FF5252", "sub": ["Clothes", "Electronics", "Gifts", "Personal Care"]},
@@ -34,8 +37,7 @@ Future<void> initializeExpenseSystem(AppDatabase db, String currentUserId) async
     ];
 
     for (final cat in defaultCategories) {
-      // Generate a static UUID namespace based on category ID to prevent duplicate categories on sync
-      final String staticId = 'c0000000-0000-0000-0000-00000000000${_getCategoryDigit(cat['id'] as String)}';
+      final String staticId = '$currentUserId-${cat['id']}';
 
       await db.upsertExpenseCategory(ExpenseCategory(
         id: staticId,
@@ -53,77 +55,72 @@ Future<void> initializeExpenseSystem(AppDatabase db, String currentUserId) async
   }
 }
 
-// Provide Drift database instance
 final dbProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
   ref.onDispose(() => db.close());
   return db;
 });
 
-// Provide Background Sync Engine instance
 final syncEngineProvider = Provider<SyncEngine>((ref) {
   final db = ref.watch(dbProvider);
   return SyncEngine(db);
 });
 
-// Watch current authentication changes
-final authStateProvider = StreamProvider<User?>((ref) {
-  return SupabaseService.client.auth.onAuthStateChange.map((event) => event.session?.user);
+final authStateProvider = StreamProvider<RecordModel?>((ref) async* {
+  final pb = PocketBaseService.client;
+  yield pb.authStore.record;
+  await for (final event in pb.authStore.onChange) {
+    yield event.record;
+  }
 });
 
-// Dynamic User ID Provider (defaults to 'guest' if unauthenticated)
 final userIdProvider = Provider<String>((ref) {
   final authState = ref.watch(authStateProvider);
   final userId = authState.value?.id ?? 'guest';
-  
+
   final db = ref.read(dbProvider);
   initializeExpenseSystem(db, userId);
-  
+
   return userId;
 });
 
-// Watch sync engine status using StateNotifier
-class SyncStatusNotifier extends StateNotifier<SyncStatus> {
-  final SyncEngine _engine;
-
-  SyncStatusNotifier(this._engine) : super(_engine.statusNotifier.value) {
-    _engine.statusNotifier.addListener(_listener);
-  }
-
-  void _listener() {
-    state = _engine.statusNotifier.value;
-  }
+class SyncStatusNotifier extends Notifier<SyncStatus> {
+  SyncEngine? _engine;
 
   @override
-  void dispose() {
-    _engine.statusNotifier.removeListener(_listener);
-    super.dispose();
+  SyncStatus build() {
+    _engine = ref.watch(syncEngineProvider);
+    _engine!.statusNotifier.addListener(_onStatusChange);
+    ref.onDispose(() => _engine!.statusNotifier.removeListener(_onStatusChange));
+    return _engine!.statusNotifier.value;
+  }
+
+  void _onStatusChange() {
+    state = _engine!.statusNotifier.value;
   }
 }
 
-final syncStatusProvider = StateNotifierProvider<SyncStatusNotifier, SyncStatus>((ref) {
-  final engine = ref.watch(syncEngineProvider);
-  return SyncStatusNotifier(engine);
-});
+final syncStatusProvider = NotifierProvider<SyncStatusNotifier, SyncStatus>(SyncStatusNotifier.new);
 
-// StateNotifier to handle signup, login, logout flows with visual loading states
-class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
-  final Ref ref;
-
-  AuthNotifier(this.ref) : super(const AsyncValue.data(null)) {
-    state = AsyncValue.data(SupabaseService.currentUser);
+class AuthNotifier extends AsyncNotifier<RecordModel?> {
+  @override
+  FutureOr<RecordModel?> build() {
+    return PocketBaseService.currentUser;
   }
 
   Future<void> login(String email, String password) async {
     state = const AsyncValue.loading();
     try {
-      final res = await SupabaseService.signIn(email: email, password: password);
-      final newUserId = res.user?.id;
-      if (newUserId != null) {
+      debugPrint('[Auth] Login attempt: $email');
+      final authRes = await PocketBaseService.signIn(email: email, password: password);
+      debugPrint('[Auth] Login succeeded, user: ${authRes.record.id}');
+      final newUserId = authRes.record.id;
+      if (newUserId.isNotEmpty) {
         await _migrateGuestData(newUserId);
       }
-      state = AsyncValue.data(res.user);
+      state = AsyncValue.data(authRes.record);
     } catch (e, stack) {
+      debugPrint('[Auth] Login ERROR: $e');
       state = AsyncValue.error(e, stack);
     }
   }
@@ -131,13 +128,19 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   Future<void> signup(String email, String password) async {
     state = const AsyncValue.loading();
     try {
-      final res = await SupabaseService.signUp(email: email, password: password);
-      final newUserId = res.user?.id;
-      if (newUserId != null) {
+      debugPrint('[Auth] Starting signup: $email');
+      final record = await PocketBaseService.signUp(email: email, password: password);
+      debugPrint('[Auth] Signup create succeeded, record id: ${record.id}');
+      final newUserId = record.id;
+      if (newUserId.isNotEmpty) {
+        debugPrint('[Auth] Migrating guest data to: $newUserId');
         await _migrateGuestData(newUserId);
       }
-      state = AsyncValue.data(res.user);
+      state = AsyncValue.data(record);
+      debugPrint('[Auth] Signup completed successfully');
     } catch (e, stack) {
+      debugPrint('[Auth] Signup ERROR: $e');
+      debugPrint('[Auth] Stack trace: $stack');
       state = AsyncValue.error(e, stack);
     }
   }
@@ -145,7 +148,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   Future<void> _migrateGuestData(String newUserId) async {
     final db = ref.read(dbProvider);
     await db.transaction(() async {
-      // 1. Update contacts from 'guest' to the new user ID
       await (db.update(db.contacts)..where((t) => t.userId.equals('guest'))).write(
         ContactsCompanion(
           userId: Value(newUserId),
@@ -153,7 +155,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
           updatedAt: Value(DateTime.now()),
         ),
       );
-      // 2. Update transactions from 'guest' to the new user ID
       await (db.update(db.transactions)..where((t) => t.userId.equals('guest'))).write(
         TransactionsCompanion(
           userId: Value(newUserId),
@@ -161,15 +162,21 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
           updatedAt: Value(DateTime.now()),
         ),
       );
-      // 3. Update expense categories from 'guest' to the new user ID
-      await (db.update(db.expenseCategories)..where((t) => t.userId.equals('guest'))).write(
-        ExpenseCategoriesCompanion(
-          userId: Value(newUserId),
-          isDirty: const Value(true),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
-      // 4. Update expenses from 'guest' to the new user ID
+      // Rewrite guest-prefixed category IDs (guest-food → newUserId-food)
+      final guestCats = await (db.select(db.expenseCategories)..where((t) => t.userId.equals('guest'))).get();
+      for (final cat in guestCats) {
+        final newId = cat.id.startsWith('guest-')
+            ? cat.id.replaceFirst('guest-', '$newUserId-')
+            : '$newUserId-${cat.id}';
+        await db.upsertExpenseCategory(cat.copyWith(
+          id: newId,
+          userId: newUserId,
+          isDirty: true,
+          updatedAt: DateTime.now(),
+        ));
+        // Delete old record by old id
+        await db.hardDeleteExpenseCategory(cat.id);
+      }
       await (db.update(db.expenses)..where((t) => t.userId.equals('guest'))).write(
         ExpensesCompanion(
           userId: Value(newUserId),
@@ -183,43 +190,39 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   Future<void> logout() async {
     state = const AsyncValue.loading();
     try {
-      await SupabaseService.signOut();
+      debugPrint('[Auth] Logging out');
+      await PocketBaseService.signOut();
       state = const AsyncValue.data(null);
+      debugPrint('[Auth] Logout completed');
     } catch (e, stack) {
+      debugPrint('[Auth] Logout ERROR: $e');
       state = AsyncValue.error(e, stack);
     }
   }
 }
 
-final authNotifierProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {
-  return AuthNotifier(ref);
-});
+final authNotifierProvider = AsyncNotifierProvider<AuthNotifier, RecordModel?>(AuthNotifier.new);
 
-// Watch contacts stream provider
 final contactsStreamProvider = StreamProvider.family<List<Contact>, String>((ref, userId) {
   final db = ref.watch(dbProvider);
   return db.watchContacts(userId);
 });
 
-// Watch transactions stream provider for a contact
 final transactionsStreamProvider = StreamProvider.family<List<TransactionModel>, String>((ref, contactId) {
   final db = ref.watch(dbProvider);
   return db.watchTransactionsForContact(contactId);
 });
 
-// Watch all transactions stream provider for dashboard calculations
 final allTransactionsStreamProvider = StreamProvider.family<List<TransactionModel>, String>((ref, userId) {
   final db = ref.watch(dbProvider);
   return db.watchAllTransactions(userId);
 });
 
-// Watch expense categories stream provider
 final expenseCategoriesStreamProvider = StreamProvider.family<List<ExpenseCategory>, String>((ref, userId) {
   final db = ref.watch(dbProvider);
   return db.watchExpenseCategories(userId);
 });
 
-// Watch expenses stream provider
 final expensesStreamProvider = StreamProvider.family<List<Expense>, String>((ref, userId) {
   final db = ref.watch(dbProvider);
   return db.watchExpenses(userId);
