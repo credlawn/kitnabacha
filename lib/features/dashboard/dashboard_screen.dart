@@ -271,121 +271,183 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               decoration: AppTheme.cardDecoration(
                                 isDark: Theme.of(context).brightness == Brightness.dark,
                               ),
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        AppTheme.formatAmount(net.abs()),
+                              padding: const EdgeInsets.all(16),
+                              child: receivable == 0 && payable == 0
+                                  ? Center(
+                                      child: Text(
+                                        'All settled',
                                         style: TextStyle(
-                                          fontSize: 26,
-                                          fontWeight: FontWeight.w900,
-                                          color: net == 0
-                                              ? (Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary)
-                                              : net > 0
-                                                  ? AppTheme.creditGreen
-                                                  : AppTheme.debitRed,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).brightness == Brightness.dark
+                                              ? AppTheme.darkTextSecondary
+                                              : AppTheme.textSecondary,
                                         ),
                                       ),
-                                      if (net != 0) ...[
-                                        const SizedBox(width: 8),
-                                        Padding(
-                                          padding: const EdgeInsets.only(bottom: 3),
-                                          child: Text(
-                                            net > 0 ? 'Receivable' : 'Payable',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: (Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary).withValues(alpha: 0.7),
-                                            ),
+                                    )
+                                  : Column(
+                                        children: [
+                                          Stack(
+                                            children: [
+                                              Center(
+                                                child: Text(
+                                                  AppTheme.formatAmount(net.abs()),
+                                                  style: TextStyle(
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: net == 0
+                                                        ? (Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary)
+                                                        : net > 0
+                                                            ? AppTheme.creditGreen
+                                                            : AppTheme.debitRed,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (net != 0)
+                                                Positioned(
+                                                  left: 0,
+                                                  top: 0,
+                                                  bottom: 0,
+                                                  child: Center(
+                                                    child: Text(
+                                                      net > 0 ? 'To Receive' : 'To Pay',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: (Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary).withValues(alpha: 0.7),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
+                                        const SizedBox(height: 10),
+                                        Divider(
+                                          color: Theme.of(context).brightness == Brightness.dark
+                                              ? AppTheme.darkBorder
+                                              : AppTheme.lightBorder,
+                                          height: 1,
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Container(
+                                                padding: const EdgeInsets.all(14),
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.debitRed.withValues(alpha: 0.08),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: AppTheme.debitRed.withValues(alpha: 0.2),
+                                                    width: 1,
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Container(
+                                                          width: 8,
+                                                          height: 8,
+                                                          decoration: const BoxDecoration(
+                                                            color: AppTheme.debitRed,
+                                                            shape: BoxShape.circle,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 6),
+                                                        Text(
+                                                          'To Pay',
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.w700,
+                                                            color: AppTheme.debitRed.withValues(alpha: 0.8),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    Text(
+                                                      AppTheme.formatAmount(payable),
+                                                      style: const TextStyle(
+                                                        fontSize: 18,
+                                                        fontWeight: FontWeight.w900,
+                                                        color: AppTheme.debitRed,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Container(
+                                                padding: const EdgeInsets.all(14),
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.creditGreen.withValues(alpha: 0.08),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: AppTheme.creditGreen.withValues(alpha: 0.2),
+                                                    width: 1,
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Container(
+                                                          width: 8,
+                                                          height: 8,
+                                                          decoration: const BoxDecoration(
+                                                            color: AppTheme.creditGreen,
+                                                            shape: BoxShape.circle,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 6),
+                                                        Text(
+                                                          'To Receive',
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.w700,
+                                                            color: AppTheme.creditGreen.withValues(alpha: 0.8),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    Text(
+                                                      AppTheme.formatAmount(receivable),
+                                                      style: const TextStyle(
+                                                        fontSize: 18,
+                                                        fontWeight: FontWeight.w900,
+                                                        color: AppTheme.creditGreen,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
-                                    ],
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                    child: Divider(
-                                      color: Theme.of(context).brightness == Brightness.dark
-                                          ? AppTheme.darkBorder
-                                          : AppTheme.lightBorder,
-                                      height: 1,
                                     ),
-                                  ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      Column(
-                                        children: [
-                                          Text(
-                                            'Total Receivable',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            AppTheme.formatAmount(receivable),
-                                            style: const TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.creditGreen,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      Container(
-                                        height: 28,
-                                        width: 1,
-                                        color: Theme.of(context).brightness == Brightness.dark
-                                            ? AppTheme.darkBorder
-                                            : AppTheme.lightBorder,
-                                      ),
-                                      Column(
-                                        children: [
-                                          Text(
-                                            'Total Payable',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            AppTheme.formatAmount(payable),
-                                            style: const TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.debitRed,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
                             ),
                           ),
                         ),
 
                         // 2. Contacts Header
                         SliverPadding(
-                          padding: const EdgeInsets.only(left: 20, right: 20, top: 24, bottom: 8),
+                          padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 8),
                           sliver: SliverToBoxAdapter(
                             child: Text(
-                              'MY CONTACTS',
+                              'Contacts',
                               style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
                                 color: Theme.of(context).brightness == Brightness.dark
                                     ? AppTheme.secondaryText
                                     : AppTheme.lightTextSecondary,
-                                letterSpacing: 1.5,
                               ),
                             ),
                           ),
@@ -417,140 +479,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   ),
                                 ),
                               )
-                            : SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) {
-                                    final contact = contacts[index];
-
-                                    // Calculate contact-specific balance
-                                    final cTxns = txns.where((t) => t.contactId == contact.id).toList();
-                                    double cBalance = 0;
-                                    for (final txn in cTxns) {
-                                      if (txn.type == 'give' || txn.type == 'pay') {
-                                        cBalance += txn.amount;
-                                      } else {
-                                        cBalance -= txn.amount;
-                                      }
-                                    }
-
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-                                      child: InkWell(
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => LedgerScreen(
-                                                contact: contact,
-                                                userId: widget.userId,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        borderRadius: BorderRadius.circular(16),
-                                        child: Container(
-                                          decoration: AppTheme.glassmorphicBox(context: context),
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                          child: Row(
-                                            children: [
-                                              // Contact Initials Avatar
-                                              CircleAvatar(
-                                                backgroundColor: Theme.of(context).brightness == Brightness.dark
-                                                    ? AppTheme.primary.withValues(alpha: 0.2)
-                                                    : AppTheme.primary.withValues(alpha: 0.12),
-                                                foregroundColor: Theme.of(context).brightness == Brightness.dark
-                                                    ? AppTheme.primaryLight
-                                                    : AppTheme.primary,
-                                                radius: 22,
-                                                child: Text(
-                                                  contact.name.trim().isNotEmpty
-                                                      ? contact.name.trim().substring(0, 1).toUpperCase()
-                                                      : '?',
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16,
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 14),
-
-                                              // Name and Phone details
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      contact.name,
-                                                      style: TextStyle(
-                                                        fontSize: 16,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: Theme.of(context).brightness == Brightness.dark
-                                                            ? AppTheme.darkTextPrimary
-                                                            : AppTheme.textPrimary,
-                                                      ),
-                                                    ),
-                                                    if (contact.phone != null) ...[
-                                                      const SizedBox(height: 2),
-                                                      Text(
-                                                        contact.phone!,
-                                                        style: TextStyle(
-                                                          fontSize: 12,
-                                                          color: Theme.of(context).brightness == Brightness.dark
-                                                              ? AppTheme.darkTextSecondary
-                                                              : AppTheme.textSecondary,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ],
-                                                ),
-                                              ),
-
-                                              // Balance indicator
-                                              Column(
-                                                crossAxisAlignment: CrossAxisAlignment.end,
-                                                children: [
-                                                  Text(
-                                                    cBalance == 0
-                                                        ? 'Settled'
-                                                        : AppTheme.formatAmount(cBalance.abs()),
-                                                    style: TextStyle(
-                                                      fontSize: 15,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: cBalance > 0
-                                                          ? AppTheme.creditGreen
-                                                          : cBalance < 0
-                                                              ? AppTheme.debitRed
-                                                              : AppTheme.secondaryText,
-                                                    ),
-                                                  ),
-                                                  if (cBalance != 0) ...[
-                                                    const SizedBox(height: 2),
-                                                    Text(
-                                                      cBalance > 0 ? 'Receivable' : 'Payable',
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: cBalance > 0
-                                                            ? AppTheme.creditGreen.withValues(alpha: 0.7)
-                                                            : AppTheme.debitRed.withValues(alpha: 0.7),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                              const SizedBox(width: 4),
-                                              const Icon(
-                                                Icons.chevron_right_rounded,
-                                                color: AppTheme.secondaryText,
-                                                size: 20,
-                                              ),
-                                            ],
-                                          ),
+                            : SliverToBoxAdapter(
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                  decoration: AppTheme.glassmorphicBox(context: context),
+                                  child: Column(
+                                    children: [
+                                      for (int i = 0; i < contacts.length; i++)
+                                        _buildContactTile(
+                                          contact: contacts[i],
+                                          txns: txns,
+                                          index: i,
+                                          total: contacts.length,
                                         ),
-                                      ),
-                                    );
-                                  },
-                                  childCount: contacts.length,
+                                    ],
+                                  ),
                                 ),
                               ),
                           // extra space so last contact clears the center + button
@@ -645,6 +588,145 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildContactTile({
+    required Contact contact,
+    required List<TransactionModel> txns,
+    required int index,
+    required int total,
+  }) {
+    final cTxns = txns.where((t) => t.contactId == contact.id).toList();
+    double cBalance = 0;
+    for (final txn in cTxns) {
+      if (txn.type == 'give' || txn.type == 'pay') {
+        cBalance += txn.amount;
+      } else {
+        cBalance -= txn.amount;
+      }
+    }
+
+    return Column(
+      children: [
+        InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => LedgerScreen(
+                  contact: contact,
+                  userId: widget.userId,
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Theme.of(context).brightness == Brightness.dark
+                      ? AppTheme.primary.withValues(alpha: 0.2)
+                      : AppTheme.primary.withValues(alpha: 0.12),
+                  foregroundColor: Theme.of(context).brightness == Brightness.dark
+                      ? AppTheme.primaryLight
+                      : AppTheme.primary,
+                  radius: 22,
+                  child: Text(
+                    contact.name.trim().isNotEmpty
+                        ? contact.name.trim().substring(0, 1).toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        contact.name,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? AppTheme.darkTextPrimary
+                              : AppTheme.textPrimary,
+                        ),
+                      ),
+                      if (contact.phone != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          contact.phone!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? AppTheme.darkTextSecondary
+                                : AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      cBalance == 0
+                          ? 'Settled'
+                          : AppTheme.formatAmount(cBalance.abs()),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: cBalance > 0
+                            ? AppTheme.creditGreen
+                            : cBalance < 0
+                                ? AppTheme.debitRed
+                                : AppTheme.secondaryText,
+                      ),
+                    ),
+                    if (cBalance != 0) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        cBalance > 0 ? 'Receivable' : 'Payable',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: cBalance > 0
+                              ? AppTheme.creditGreen.withValues(alpha: 0.7)
+                              : AppTheme.debitRed.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppTheme.secondaryText,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (index < total - 1)
+          Divider(
+            height: 1,
+            indent: 16,
+            endIndent: 16,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppTheme.darkBorder.withValues(alpha: 0.5)
+                : AppTheme.lightBorder,
+          ),
+      ],
     );
   }
 }
