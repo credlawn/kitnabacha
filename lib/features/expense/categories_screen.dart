@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/delete_confirm_dialog.dart';
 
 class CategoriesScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -324,24 +325,10 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     }
 
     if (!mounted) return;
-    final confirm = await showDialog<bool>(
+    final confirm = await DeleteConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        title: const Text('Delete Category?'),
-        content: Text('Are you sure you want to delete "${category.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.secondaryText)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.debitRed, foregroundColor: Colors.white),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Category?',
+      message: 'Are you sure you want to delete "${category.name}"?',
     );
 
     if (confirm == true) {
@@ -352,24 +339,10 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   }
 
   void _deleteSubCategory(ExpenseCategory category, String subName) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await DeleteConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        title: const Text('Delete Sub-category?'),
-        content: Text('Are you sure you want to delete sub-category "$subName" from "${category.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.secondaryText)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.debitRed, foregroundColor: Colors.white),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Sub-category?',
+      message: 'Are you sure you want to delete sub-category "$subName" from "${category.name}"?',
     );
 
     if (confirm == true) {

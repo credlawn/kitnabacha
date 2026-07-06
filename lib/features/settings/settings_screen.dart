@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocketbase/pocketbase.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/delete_confirm_dialog.dart';
 import '../../core/widgets/app_toggle.dart';
 import '../auth/auth_screen.dart';
 
@@ -75,24 +76,16 @@ class SettingsScreen extends ConsumerWidget {
             icon: Icons.delete_outline_rounded,
             title: 'Clear All Data',
             textColor: AppTheme.debitRed,
-            onTap: () {
-              showDialog(
+            onTap: () async {
+              final confirmed = await DeleteConfirmDialog.show(
                 context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Clear All Data?'),
-                  content: const Text('This will permanently delete all your contacts, transactions, and expenses. This action cannot be undone.'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        AppTheme.showSnackBar(context, 'Data cleared successfully');
-                      },
-                      child: const Text('Delete', style: TextStyle(color: AppTheme.debitRed)),
-                    ),
-                  ],
-                ),
+                title: 'Clear All Data?',
+                message: 'This will permanently delete all your contacts, transactions, and expenses. This action cannot be undone.',
+                confirmLabel: 'Clear All',
               );
+              if (confirmed == true && context.mounted) {
+                AppTheme.showSnackBar(context, 'Data cleared successfully');
+              }
             },
           ),
           const SizedBox(height: 24),

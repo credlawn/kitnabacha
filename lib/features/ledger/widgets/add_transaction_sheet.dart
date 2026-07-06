@@ -6,11 +6,12 @@ import 'package:drift/drift.dart' show Value;
 import '../../../core/database/local_db.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/delete_confirm_dialog.dart';
 
 class AddTransactionSheet extends ConsumerStatefulWidget {
   final Contact contact;
   final String userId;
-  final bool isOutflow; // True if I Paid, False if I Received
+  final bool isOutflow;
   final double currentBalance;
   final TransactionModel? transactionToEdit;
 
@@ -50,7 +51,6 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
     super.dispose();
   }
 
-  // Pick Date
   Future<void> _selectDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -84,7 +84,6 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
     }
   }
 
-  // Save Transaction
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -95,7 +94,6 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
     TransactionModel transaction;
 
     if (widget.transactionToEdit != null) {
-      // Editing existing transaction
       transaction = widget.transactionToEdit!.copyWith(
         amount: amount,
         description: Value(_descController.text.trim().isEmpty ? null : _descController.text.trim()),
@@ -104,24 +102,17 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
         isDirty: true,
       );
     } else {
-      // Classify transaction type automatically based on isOutflow and current balance
       String resolvedType;
       if (widget.isOutflow) {
-        // Outflow means we gave money (+ to the balance)
         if (widget.currentBalance < 0) {
-          // We owed them money, so this is paying back a debt
           resolvedType = 'pay';
         } else {
-          // They owed us, or we are even, so we are lending them money
           resolvedType = 'give';
         }
       } else {
-        // Inflow means we received money (- from the balance)
         if (widget.currentBalance > 0) {
-          // They owed us money, so this is receiving part payment of their debt
           resolvedType = 'receive';
         } else {
-          // We owed them, or we are even, so we are borrowing money
           resolvedType = 'take';
         }
       }
@@ -141,16 +132,40 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
       );
     }
 
-    // Save/Update transaction locally-first
     await db.upsertTransaction(transaction);
-
-    // Update the contact's updatedAt field to trigger local and sync updates
     await db.upsertContact(widget.contact.copyWith(
       updatedAt: DateTime.now(),
       isDirty: true,
     ));
+    ref.read(syncEngineProvider).triggerSync();
 
-    // Trigger async sync in the background
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  Future<void> _delete() async {
+    final txn = widget.transactionToEdit;
+    if (txn == null) return;
+
+    final confirmed = await DeleteConfirmDialog.show(
+      context: context,
+      title: 'Delete Entry',
+      message: 'Remove this ${txn.type} entry of ${AppTheme.formatAmount(txn.amount)}?',
+    );
+
+    if (confirmed != true) return;
+
+    final db = ref.read(dbProvider);
+    await db.upsertTransaction(txn.copyWith(
+      isDeleted: true,
+      updatedAt: DateTime.now(),
+      isDirty: true,
+    ));
+    await db.upsertContact(widget.contact.copyWith(
+      updatedAt: DateTime.now(),
+      isDirty: true,
+    ));
     ref.read(syncEngineProvider).triggerSync();
 
     if (mounted) {
@@ -160,73 +175,146 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.transactionToEdit != null
-        ? 'Edit Entry'
-        : (widget.isOutflow ? 'I Paid' : 'I Received');
+    final isEdit = widget.transactionToEdit != null;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final actionColor = widget.isOutflow ? AppTheme.debitRed : AppTheme.creditGreen;
 
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? AppTheme.darkBorder
-                  : AppTheme.lightBorder,
-              width: 1,
-            ),
+    return Scaffold(
+      backgroundColor: isDark ? AppTheme.darkBg : AppTheme.lightBg,
+      appBar: AppBar(
+        title: Text(
+          isEdit ? 'Edit Entry' : (widget.isOutflow ? 'Paid' : 'Received'),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 17,
           ),
         ),
-        padding: const EdgeInsets.all(24),
+        centerTitle: false,
+        actions: [
+          if (isEdit)
+            IconButton(
+              onPressed: _delete,
+              icon: Icon(Icons.delete_outline_rounded, color: AppTheme.secondaryText),
+              tooltip: 'Delete',
+            ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              onPressed: _save,
+              icon: Icon(
+                Icons.save_outlined,
+                color: actionColor,
+              ),
+              tooltip: isEdit ? 'Save' : 'Add',
+              style: IconButton.styleFrom(
+                backgroundColor: actionColor.withValues(alpha: 0.1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         child: Form(
           key: _formKey,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: actionColor,
+              // Contact info
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.darkCard : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppTheme.primary.withValues(alpha: 0.12),
+                      foregroundColor: AppTheme.primary,
+                      child: Text(
+                        widget.contact.name.trim().isNotEmpty
+                            ? widget.contact.name.trim().substring(0, 1).toUpperCase()
+                            : '?',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        widget.contact.name,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: actionColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        widget.isOutflow ? 'Paid' : 'Received',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: actionColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              // Amount Input
+              // Amount
+              Text(
+                'Amount',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                autofocus: true,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                autofocus: !isEdit,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
+                ),
                 textAlign: TextAlign.center,
                 decoration: InputDecoration(
                   hintText: '₹ 0.00',
-                  fillColor: const Color(0xFF1F293D).withValues(alpha: 0.5),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: actionColor.withValues(alpha: 0.3)),
+                  hintStyle: TextStyle(
+                    color: AppTheme.secondaryText.withValues(alpha: 0.4),
+                  ),
+                  filled: true,
+                  fillColor: isDark
+                      ? AppTheme.darkCard
+                      : AppTheme.lightBorder.withValues(alpha: 0.3),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(color: actionColor, width: 1.5),
                   ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 20),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -239,78 +327,100 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // Description Input
+              // Description
+              Text(
+                'Remarks',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _descController,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Remarks / description (Optional)',
-                  hintText: 'Enter details (e.g. Chai, Udhaar, online transfer)',
-                  prefixIcon: Icon(Icons.description_outlined),
+                maxLines: 2,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'e.g. Chai, Udhaar, online transfer',
+                  hintStyle: TextStyle(
+                    color: AppTheme.secondaryText.withValues(alpha: 0.4),
+                  ),
+                  filled: true,
+                  fillColor: isDark
+                      ? AppTheme.darkCard
+                      : AppTheme.lightBorder.withValues(alpha: 0.3),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: AppTheme.primary, width: 1),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please add a remark';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+
+              // Date
+              Text(
+                'Date',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // Date Selector Row
+              const SizedBox(height: 8),
               InkWell(
                 onTap: _selectDate,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFF1F293D)
-                        : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? AppTheme.darkBorder
-                          : AppTheme.lightBorder,
-                    ),
+                    color: isDark
+                        ? AppTheme.darkCard
+                        : AppTheme.lightBorder.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today_rounded, color: AppTheme.secondaryText, size: 20),
-                      const SizedBox(width: 14),
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 20,
+                        color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                      ),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Transaction Date',
-                              style: TextStyle(fontSize: 10, color: AppTheme.secondaryText),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              DateFormat('dd MMM yyyy (EEEE)').format(_selectedDate),
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                            ),
-                          ],
+                        child: Text(
+                          DateFormat('dd MMM yyyy').format(_selectedDate),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
+                          ),
                         ),
                       ),
-                      const Icon(Icons.arrow_drop_down, color: AppTheme.secondaryText),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: AppTheme.secondaryText,
+                      ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Save Button
-              ElevatedButton(
-                onPressed: _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: actionColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  widget.transactionToEdit != null ? 'Update Entry' : 'Add Entry',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ],

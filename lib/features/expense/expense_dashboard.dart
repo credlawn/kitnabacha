@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/delete_confirm_dialog.dart';
 import 'categories_screen.dart';
 import 'widgets/add_expense_sheet.dart';
 
@@ -155,38 +156,17 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
     );
   }
 
-  void _confirmDeleteExpense(BuildContext context, Expense exp) {
-    showDialog(
+  void _confirmDeleteExpense(BuildContext context, Expense exp) async {
+    final confirmed = await DeleteConfirmDialog.show(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Theme.of(context).cardColor,
-          title: const Text('Delete Expense?'),
-          content: Text('Are you sure you want to delete this expense of ${AppTheme.formatAmount(exp.amount)}?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final db = ref.read(dbProvider);
-                await db.softDeleteExpense(exp.id);
-                ref.read(syncEngineProvider).triggerSync();
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.debitRed,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
+      title: 'Delete Expense?',
+      message: 'Are you sure you want to delete this expense of ${AppTheme.formatAmount(exp.amount)}?',
     );
+    if (confirmed == true) {
+      final db = ref.read(dbProvider);
+      await db.softDeleteExpense(exp.id);
+      ref.read(syncEngineProvider).triggerSync();
+    }
   }
 
   @override

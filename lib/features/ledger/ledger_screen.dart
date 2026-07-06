@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/delete_confirm_dialog.dart';
 import 'widgets/add_transaction_sheet.dart';
 
 class LedgerScreen extends ConsumerStatefulWidget {
@@ -45,56 +46,26 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     }
 
     if (!context.mounted) return;
-    showDialog(
+    final confirmed = await DeleteConfirmDialog.show(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Theme.of(context).cardColor,
-          title: const Text('Delete Contact?'),
-          content: Text('Are you sure you want to delete "${widget.contact.name}"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54)),
-            ),
-            TextButton(
-              onPressed: () async {
-                final db = ref.read(dbProvider);
-                await db.softDeleteContact(widget.contact.id);
-                ref.read(syncEngineProvider).triggerSync();
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Delete', style: TextStyle(color: AppTheme.debitRed, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
+      title: 'Delete Contact?',
+      message: 'Are you sure you want to delete "${widget.contact.name}"?',
     );
+    if (confirmed == true && context.mounted) {
+      final db = ref.read(dbProvider);
+      await db.softDeleteContact(widget.contact.id);
+      ref.read(syncEngineProvider).triggerSync();
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+    }
   }
 
   Future<bool?> _confirmDeleteTransactionDialog(BuildContext context, TransactionModel txn) {
-    return showDialog<bool>(
+    return DeleteConfirmDialog.show(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Theme.of(context).cardColor,
-          title: const Text('Delete Entry?'),
-          content: Text('Delete this transaction of ${AppTheme.formatAmount(txn.amount)}?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text('Cancel', style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete', style: TextStyle(color: AppTheme.debitRed, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
+      title: 'Delete Entry?',
+      message: 'Delete this transaction of ${AppTheme.formatAmount(txn.amount)}?',
     );
   }
 
@@ -143,30 +114,30 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
   }
 
   void _openAddTransactionSheet(BuildContext context, bool isOutflow, double currentBalance) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => AddTransactionSheet(
-        contact: widget.contact,
-        userId: widget.userId,
-        isOutflow: isOutflow,
-        currentBalance: currentBalance,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddTransactionSheet(
+          contact: widget.contact,
+          userId: widget.userId,
+          isOutflow: isOutflow,
+          currentBalance: currentBalance,
+        ),
       ),
     );
   }
 
   void _openEditTransactionSheet(BuildContext context, TransactionModel txn, double currentBalance) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => AddTransactionSheet(
-        contact: widget.contact,
-        userId: widget.userId,
-        isOutflow: txn.type == 'give' || txn.type == 'pay',
-        currentBalance: currentBalance,
-        transactionToEdit: txn,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddTransactionSheet(
+          contact: widget.contact,
+          userId: widget.userId,
+          isOutflow: txn.type == 'give' || txn.type == 'pay',
+          currentBalance: currentBalance,
+          transactionToEdit: txn,
+        ),
       ),
     );
   }
@@ -401,9 +372,15 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                   ? AppTheme.darkTextPrimary
                   : AppTheme.textPrimary,
             ),
+            position: PopupMenuPosition.under,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
             ),
+            elevation: 4,
+            shadowColor: Colors.black.withValues(alpha: 0.15),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppTheme.darkCard
+                : Colors.white,
             onSelected: (value) {
               if (value == 'delete') {
                 _confirmDeleteContact(context);
