@@ -269,34 +269,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showAuthModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              border: Border(
-                top: BorderSide(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppTheme.darkBorder
-                      : AppTheme.lightBorder,
-                  width: 1,
-                ),
-              ),
-            ),
-            padding: const EdgeInsets.only(top: 8),
-            child: const AuthScreen(),
-          ),
-        );
-      },
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen()));
   }
 
   @override
@@ -310,11 +283,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Ledgeo', style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.primary,
-            )),
+            RichText(
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.primary,
+                ),
+                children: [
+                  TextSpan(text: 'Ledge', style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.primary,
+                  )),
+                  TextSpan(text: 'o', style: TextStyle(
+                    color: AppTheme.creditGreen,
+                  )),
+                ],
+              ),
+            ),
             Text(
               'Personal Ledger',
               style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary),
@@ -327,7 +312,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(width: 8),
           ],
           IconButton(
-            icon: const Icon(Icons.settings_rounded),
+            icon: Icon(Icons.person_rounded, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.primary),
             tooltip: 'Settings',
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
           ),
