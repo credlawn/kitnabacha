@@ -102,6 +102,21 @@ class $ContactsTable extends Contacts with TableInfo<$ContactsTable, Contact> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _isArchivedMeta = const VerificationMeta(
+    'isArchived',
+  );
+  @override
+  late final GeneratedColumn<bool> isArchived = GeneratedColumn<bool>(
+    'is_archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -112,6 +127,7 @@ class $ContactsTable extends Contacts with TableInfo<$ContactsTable, Contact> {
     updatedAt,
     isDirty,
     isDeleted,
+    isArchived,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -176,6 +192,12 @@ class $ContactsTable extends Contacts with TableInfo<$ContactsTable, Contact> {
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('is_archived')) {
+      context.handle(
+        _isArchivedMeta,
+        isArchived.isAcceptableOrUnknown(data['is_archived']!, _isArchivedMeta),
+      );
+    }
     return context;
   }
 
@@ -217,6 +239,10 @@ class $ContactsTable extends Contacts with TableInfo<$ContactsTable, Contact> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_deleted'],
       )!,
+      isArchived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_archived'],
+      )!,
     );
   }
 
@@ -235,6 +261,7 @@ class Contact extends DataClass implements Insertable<Contact> {
   final DateTime updatedAt;
   final bool isDirty;
   final bool isDeleted;
+  final bool isArchived;
   const Contact({
     required this.id,
     required this.userId,
@@ -244,6 +271,7 @@ class Contact extends DataClass implements Insertable<Contact> {
     required this.updatedAt,
     required this.isDirty,
     required this.isDeleted,
+    required this.isArchived,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -258,6 +286,7 @@ class Contact extends DataClass implements Insertable<Contact> {
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['is_dirty'] = Variable<bool>(isDirty);
     map['is_deleted'] = Variable<bool>(isDeleted);
+    map['is_archived'] = Variable<bool>(isArchived);
     return map;
   }
 
@@ -273,6 +302,7 @@ class Contact extends DataClass implements Insertable<Contact> {
       updatedAt: Value(updatedAt),
       isDirty: Value(isDirty),
       isDeleted: Value(isDeleted),
+      isArchived: Value(isArchived),
     );
   }
 
@@ -290,6 +320,7 @@ class Contact extends DataClass implements Insertable<Contact> {
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       isDirty: serializer.fromJson<bool>(json['isDirty']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      isArchived: serializer.fromJson<bool>(json['isArchived']),
     );
   }
   @override
@@ -304,6 +335,7 @@ class Contact extends DataClass implements Insertable<Contact> {
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'isDirty': serializer.toJson<bool>(isDirty),
       'isDeleted': serializer.toJson<bool>(isDeleted),
+      'isArchived': serializer.toJson<bool>(isArchived),
     };
   }
 
@@ -316,6 +348,7 @@ class Contact extends DataClass implements Insertable<Contact> {
     DateTime? updatedAt,
     bool? isDirty,
     bool? isDeleted,
+    bool? isArchived,
   }) => Contact(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -325,6 +358,7 @@ class Contact extends DataClass implements Insertable<Contact> {
     updatedAt: updatedAt ?? this.updatedAt,
     isDirty: isDirty ?? this.isDirty,
     isDeleted: isDeleted ?? this.isDeleted,
+    isArchived: isArchived ?? this.isArchived,
   );
   Contact copyWithCompanion(ContactsCompanion data) {
     return Contact(
@@ -336,6 +370,9 @@ class Contact extends DataClass implements Insertable<Contact> {
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       isDirty: data.isDirty.present ? data.isDirty.value : this.isDirty,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      isArchived: data.isArchived.present
+          ? data.isArchived.value
+          : this.isArchived,
     );
   }
 
@@ -349,7 +386,8 @@ class Contact extends DataClass implements Insertable<Contact> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDirty: $isDirty, ')
-          ..write('isDeleted: $isDeleted')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('isArchived: $isArchived')
           ..write(')'))
         .toString();
   }
@@ -364,6 +402,7 @@ class Contact extends DataClass implements Insertable<Contact> {
     updatedAt,
     isDirty,
     isDeleted,
+    isArchived,
   );
   @override
   bool operator ==(Object other) =>
@@ -376,7 +415,8 @@ class Contact extends DataClass implements Insertable<Contact> {
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDirty == this.isDirty &&
-          other.isDeleted == this.isDeleted);
+          other.isDeleted == this.isDeleted &&
+          other.isArchived == this.isArchived);
 }
 
 class ContactsCompanion extends UpdateCompanion<Contact> {
@@ -388,6 +428,7 @@ class ContactsCompanion extends UpdateCompanion<Contact> {
   final Value<DateTime> updatedAt;
   final Value<bool> isDirty;
   final Value<bool> isDeleted;
+  final Value<bool> isArchived;
   final Value<int> rowid;
   const ContactsCompanion({
     this.id = const Value.absent(),
@@ -398,6 +439,7 @@ class ContactsCompanion extends UpdateCompanion<Contact> {
     this.updatedAt = const Value.absent(),
     this.isDirty = const Value.absent(),
     this.isDeleted = const Value.absent(),
+    this.isArchived = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ContactsCompanion.insert({
@@ -409,6 +451,7 @@ class ContactsCompanion extends UpdateCompanion<Contact> {
     this.updatedAt = const Value.absent(),
     this.isDirty = const Value.absent(),
     this.isDeleted = const Value.absent(),
+    this.isArchived = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -422,6 +465,7 @@ class ContactsCompanion extends UpdateCompanion<Contact> {
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDirty,
     Expression<bool>? isDeleted,
+    Expression<bool>? isArchived,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -433,6 +477,7 @@ class ContactsCompanion extends UpdateCompanion<Contact> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDirty != null) 'is_dirty': isDirty,
       if (isDeleted != null) 'is_deleted': isDeleted,
+      if (isArchived != null) 'is_archived': isArchived,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -446,6 +491,7 @@ class ContactsCompanion extends UpdateCompanion<Contact> {
     Value<DateTime>? updatedAt,
     Value<bool>? isDirty,
     Value<bool>? isDeleted,
+    Value<bool>? isArchived,
     Value<int>? rowid,
   }) {
     return ContactsCompanion(
@@ -457,6 +503,7 @@ class ContactsCompanion extends UpdateCompanion<Contact> {
       updatedAt: updatedAt ?? this.updatedAt,
       isDirty: isDirty ?? this.isDirty,
       isDeleted: isDeleted ?? this.isDeleted,
+      isArchived: isArchived ?? this.isArchived,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -488,6 +535,9 @@ class ContactsCompanion extends UpdateCompanion<Contact> {
     if (isDeleted.present) {
       map['is_deleted'] = Variable<bool>(isDeleted.value);
     }
+    if (isArchived.present) {
+      map['is_archived'] = Variable<bool>(isArchived.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -505,6 +555,7 @@ class ContactsCompanion extends UpdateCompanion<Contact> {
           ..write('updatedAt: $updatedAt, ')
           ..write('isDirty: $isDirty, ')
           ..write('isDeleted: $isDeleted, ')
+          ..write('isArchived: $isArchived, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2477,6 +2528,7 @@ typedef $$ContactsTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDirty,
       Value<bool> isDeleted,
+      Value<bool> isArchived,
       Value<int> rowid,
     });
 typedef $$ContactsTableUpdateCompanionBuilder =
@@ -2489,6 +2541,7 @@ typedef $$ContactsTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDirty,
       Value<bool> isDeleted,
+      Value<bool> isArchived,
       Value<int> rowid,
     });
 
@@ -2499,7 +2552,7 @@ final class $$ContactsTableReferences
   static MultiTypedResultKey<$TransactionsTable, List<TransactionModel>>
   _transactionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.transactions,
-    aliasName: $_aliasNameGenerator(db.contacts.id, db.transactions.contactId),
+    aliasName: 'contacts__id__transactions__contact_id',
   );
 
   $$TransactionsTableProcessedTableManager get transactionsRefs {
@@ -2561,6 +2614,11 @@ class $$ContactsTableFilterComposer
 
   ColumnFilters<bool> get isDeleted => $composableBuilder(
     column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2638,6 +2696,11 @@ class $$ContactsTableOrderingComposer
     column: $table.isDeleted,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ContactsTableAnnotationComposer
@@ -2672,6 +2735,11 @@ class $$ContactsTableAnnotationComposer
 
   GeneratedColumn<bool> get isDeleted =>
       $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumn<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => column,
+  );
 
   Expression<T> transactionsRefs<T extends Object>(
     Expression<T> Function($$TransactionsTableAnnotationComposer a) f,
@@ -2735,6 +2803,7 @@ class $$ContactsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDirty = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ContactsCompanion(
                 id: id,
@@ -2745,6 +2814,7 @@ class $$ContactsTableTableManager
                 updatedAt: updatedAt,
                 isDirty: isDirty,
                 isDeleted: isDeleted,
+                isArchived: isArchived,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2757,6 +2827,7 @@ class $$ContactsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDirty = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ContactsCompanion.insert(
                 id: id,
@@ -2767,6 +2838,7 @@ class $$ContactsTableTableManager
                 updatedAt: updatedAt,
                 isDirty: isDirty,
                 isDeleted: isDeleted,
+                isArchived: isArchived,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -2861,9 +2933,7 @@ final class $$TransactionsTableReferences
   $$TransactionsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $ContactsTable _contactIdTable(_$AppDatabase db) =>
-      db.contacts.createAlias(
-        $_aliasNameGenerator(db.transactions.contactId, db.contacts.id),
-      );
+      db.contacts.createAlias('transactions__contact_id__contacts__id');
 
   $$ContactsTableProcessedTableManager get contactId {
     final $_column = $_itemColumn<String>('contact_id')!;
@@ -3306,10 +3376,7 @@ final class $$ExpenseCategoriesTableReferences
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
     db.expenses,
-    aliasName: $_aliasNameGenerator(
-      db.expenseCategories.id,
-      db.expenses.categoryId,
-    ),
+    aliasName: 'expense_categories__id__expenses__category_id',
   );
 
   $$ExpensesTableProcessedTableManager get expensesRefs {
@@ -3711,10 +3778,9 @@ final class $$ExpensesTableReferences
     extends BaseReferences<_$AppDatabase, $ExpensesTable, Expense> {
   $$ExpensesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $ExpenseCategoriesTable _categoryIdTable(_$AppDatabase db) =>
-      db.expenseCategories.createAlias(
-        $_aliasNameGenerator(db.expenses.categoryId, db.expenseCategories.id),
-      );
+  static $ExpenseCategoriesTable _categoryIdTable(_$AppDatabase db) => db
+      .expenseCategories
+      .createAlias('expenses__category_id__expense_categories__id');
 
   $$ExpenseCategoriesTableProcessedTableManager get categoryId {
     final $_column = $_itemColumn<String>('category_id')!;

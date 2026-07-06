@@ -6,6 +6,9 @@ class DeleteConfirmDialog extends StatelessWidget {
   final String message;
   final String confirmLabel;
   final VoidCallback onConfirm;
+  final IconData icon;
+  final Color iconColor;
+  final Color confirmColor;
 
   const DeleteConfirmDialog({
     super.key,
@@ -13,6 +16,9 @@ class DeleteConfirmDialog extends StatelessWidget {
     required this.message,
     this.confirmLabel = 'Delete',
     required this.onConfirm,
+    this.icon = Icons.delete_outline_rounded,
+    this.iconColor = AppTheme.debitRed,
+    this.confirmColor = AppTheme.debitRed,
   });
 
   static Future<bool?> show({
@@ -21,6 +27,9 @@ class DeleteConfirmDialog extends StatelessWidget {
     required String message,
     String confirmLabel = 'Delete',
     VoidCallback? onConfirm,
+    IconData icon = Icons.delete_outline_rounded,
+    Color iconColor = AppTheme.debitRed,
+    Color confirmColor = AppTheme.debitRed,
   }) {
     return showDialog<bool>(
       context: context,
@@ -28,6 +37,9 @@ class DeleteConfirmDialog extends StatelessWidget {
         title: title,
         message: message,
         confirmLabel: confirmLabel,
+        icon: icon,
+        iconColor: iconColor,
+        confirmColor: confirmColor,
         onConfirm: () {
           Navigator.pop(ctx, true);
           onConfirm?.call();
@@ -52,23 +64,16 @@ class DeleteConfirmDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Icon
             Container(
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: AppTheme.debitRed.withValues(alpha: 0.1),
+                color: iconColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(
-                Icons.delete_outline_rounded,
-                color: AppTheme.debitRed,
-                size: 26,
-              ),
+              child: Icon(icon, color: iconColor, size: 26),
             ),
             const SizedBox(height: 20),
-
-            // Title
             Text(
               title,
               style: TextStyle(
@@ -78,8 +83,6 @@ class DeleteConfirmDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-
-            // Message
             Text(
               message,
               textAlign: TextAlign.center,
@@ -90,8 +93,6 @@ class DeleteConfirmDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-
-            // Buttons
             Row(
               children: [
                 Expanded(
@@ -125,7 +126,7 @@ class DeleteConfirmDialog extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: onConfirm,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.debitRed,
+                        backgroundColor: confirmColor,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(

@@ -24,6 +24,7 @@ void main() {
       updatedAt: DateTime.now(),
       isDirty: true,
       isDeleted: false,
+      isArchived: false,
     );
 
     await db.upsertContact(contact);
@@ -44,6 +45,7 @@ void main() {
       updatedAt: DateTime.now(),
       isDirty: true,
       isDeleted: false,
+      isArchived: false,
     );
 
     final c2 = Contact(
@@ -55,6 +57,7 @@ void main() {
       updatedAt: DateTime.now(),
       isDirty: true,
       isDeleted: true,
+      isArchived: false,
     );
 
     await db.upsertContact(c1);
@@ -74,6 +77,7 @@ void main() {
       updatedAt: DateTime.now(),
       isDirty: false,
       isDeleted: false,
+      isArchived: false,
     );
 
     final now = DateTime.now();
@@ -122,6 +126,7 @@ void main() {
       updatedAt: DateTime.now(),
       isDirty: false,
       isDeleted: false,
+      isArchived: false,
     );
 
     final txn = TransactionModel(
@@ -140,20 +145,16 @@ void main() {
     await db.upsertContact(contact);
     await db.upsertTransaction(txn);
 
-    // Verify presence
     var contacts = await db.watchContacts('user_123').first;
     var txns = await db.watchTransactionsForContact('c_del').first;
     expect(contacts.length, 1);
     expect(txns.length, 1);
 
-    // Execute soft delete contact
     await db.softDeleteContact('c_del');
 
-    // Verify removal from active contact list
     contacts = await db.watchContacts('user_123').first;
     expect(contacts.isEmpty, true);
 
-    // Verify contact is flagged as dirty and deleted (for sync engine)
     final dirtyContacts = await db.getDirtyContacts('user_123');
     expect(dirtyContacts.length, 1);
     expect(dirtyContacts.first.isDeleted, true);

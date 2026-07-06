@@ -16,6 +16,7 @@ class Contacts extends Table {
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   BoolColumn get isDirty => boolean().withDefault(const Constant(false))();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -81,15 +82,17 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2; // Incremented schema version for migrations
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (migrator, from, to) async {
           if (from < 2) {
-            // Create the new tables for the expense tracker
             await migrator.createTable(expenseCategories);
             await migrator.createTable(expenses);
+          }
+          if (from < 3) {
+            await migrator.addColumn(contacts, contacts.isArchived);
           }
         },
       );
@@ -97,7 +100,14 @@ class AppDatabase extends _$AppDatabase {
   // === Contacts Queries ===
   Stream<List<Contact>> watchContacts(String userId) {
     return (select(contacts)
-          ..where((t) => t.userId.equals(userId) & t.isDeleted.equals(false))
+          ..where((t) => t.userId.equals(userId) & t.isDeleted.equals(false) & t.isArchived.equals(false))
+          ..orderBy([(t) => OrderingTerm(expression: t.name)]))
+        .watch();
+  }
+
+  Stream<List<Contact>> watchArchivedContacts(String userId) {
+    return (select(contacts)
+          ..where((t) => t.userId.equals(userId) & t.isDeleted.equals(false) & t.isArchived.equals(true))
           ..orderBy([(t) => OrderingTerm(expression: t.name)]))
         .watch();
   }
@@ -113,6 +123,13 @@ class AppDatabase extends _$AppDatabase {
     return rows.length;
   }
 
+  Future<List<TransactionModel>> getActiveTransactionListForContact(String contactId) async {
+    return (select(transactions)
+          ..where((t) => t.contactId.equals(contactId) & t.isDeleted.equals(false))
+          ..orderBy([(t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc)]))
+        .get();
+  }
+
   Future<void> upsertContact(Contact contact) async {
     await into(contacts).insertOnConflictUpdate(contact);
   }
@@ -121,6 +138,24 @@ class AppDatabase extends _$AppDatabase {
     await (update(contacts)..where((t) => t.id.equals(id))).write(
       const ContactsCompanion(
         isDeleted: Value(true),
+        isDirty: Value(true),
+      ),
+    );
+  }
+
+  Future<void> archiveContact(String id) async {
+    await (update(contacts)..where((t) => t.id.equals(id))).write(
+      const ContactsCompanion(
+        isArchived: Value(true),
+        isDirty: Value(true),
+      ),
+    );
+  }
+
+  Future<void> unarchiveContact(String id) async {
+    await (update(contacts)..where((t) => t.id.equals(id))).write(
+      const ContactsCompanion(
+        isArchived: Value(false),
         isDirty: Value(true),
       ),
     );

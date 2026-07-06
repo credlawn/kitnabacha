@@ -22,6 +22,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _currentTab = 0;
+  bool _showArchived = false;
 
   @override
   void dispose() {
@@ -162,6 +163,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         updatedAt: DateTime.now(),
                         isDirty: true,
                         isDeleted: false,
+                        isArchived: false,
                       );
 
                       // Save in Drift immediately (reactive UI updates automatically)
@@ -198,7 +200,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final contactsState = ref.watch(contactsStreamProvider(widget.userId));
+    final regularContactsState = ref.watch(contactsStreamProvider(widget.userId));
+    final archivedContactsState = ref.watch(archivedContactsStreamProvider(widget.userId));
+    final contactsState = _showArchived ? archivedContactsState : regularContactsState;
     final txnsState = ref.watch(allTransactionsStreamProvider(widget.userId));
 
     return Scaffold(
@@ -254,9 +258,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
       body: _currentTab == 0
           ? contactsState.when(
-              data: (contacts) => txnsState.when(
+              data: (displayContacts) => txnsState.when(
                 data: (txns) {
-                  final balances = _calculateBalances(contacts, txns);
+                  final regularContacts = regularContactsState.asData?.value ?? [];
+                  final balances = _calculateBalances(regularContacts, txns);
                   final net = balances['net']!;
                   final receivable = balances['receivable']!;
                   final payable = balances['payable']!;
@@ -440,21 +445,67 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         SliverPadding(
                           padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 8),
                           sliver: SliverToBoxAdapter(
-                            child: Text(
-                              'Contacts',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? AppTheme.secondaryText
-                                    : AppTheme.lightTextSecondary,
-                              ),
+                            child: Row(
+                              children: [
+                                Text(
+                                  _showArchived ? 'Archived Contacts' : 'Contacts',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? AppTheme.secondaryText
+                                        : AppTheme.lightTextSecondary,
+                                  ),
+                                ),
+                                const Spacer(),
+                                InkWell(
+                                  onTap: () {
+                                    setState(() => _showArchived = !_showArchived);
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: _showArchived
+                                          ? AppTheme.primary.withValues(alpha: 0.1)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: _showArchived
+                                            ? AppTheme.primary.withValues(alpha: 0.3)
+                                            : (Theme.of(context).brightness == Brightness.dark
+                                                ? AppTheme.darkBorder
+                                                : AppTheme.lightBorder),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          _showArchived ? Icons.people_outline_rounded : Icons.archive_outlined,
+                                          size: 14,
+                                          color: _showArchived ? AppTheme.primary : AppTheme.secondaryText,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          _showArchived ? 'Show Active' : 'Archived',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: _showArchived ? AppTheme.primary : AppTheme.secondaryText,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
 
                         // 3. Contacts list
-                        contacts.isEmpty
+                        displayContacts.isEmpty
                             ? SliverFillRemaining(
                                 hasScrollBody: false,
                                 child: Center(
@@ -470,7 +521,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                         ),
                                         const SizedBox(height: 12),
                                         Text(
-                                          'No contacts yet.\nTap + to add your first contact!',
+                                          _showArchived
+                                              ? 'No archived contacts'
+                                              : 'No contacts yet.\nTap + to add your first contact!',
                                           textAlign: TextAlign.center,
                                           style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary),
                                         ),
@@ -485,12 +538,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   decoration: AppTheme.glassmorphicBox(context: context),
                                   child: Column(
                                     children: [
-                                      for (int i = 0; i < contacts.length; i++)
+                                      for (int i = 0; i < displayContacts.length; i++)
                                         _buildContactTile(
-                                          contact: contacts[i],
+                                          contact: displayContacts[i],
                                           txns: txns,
                                           index: i,
-                                          total: contacts.length,
+                                          total: displayContacts.length,
                                         ),
                                     ],
                                   ),

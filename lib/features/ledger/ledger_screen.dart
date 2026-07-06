@@ -61,6 +61,95 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     }
   }
 
+  Future<void> _confirmDeleteAllTransactions(BuildContext context) async {
+    final confirmed = await DeleteConfirmDialog.show(
+      context: context,
+      title: 'Delete All Transactions?',
+      message: 'This will permanently delete all transactions with "${widget.contact.name}". This cannot be undone.',
+      confirmLabel: 'Delete All',
+    );
+    if (confirmed == true && context.mounted) {
+      final db = ref.read(dbProvider);
+      final txns = await db.getActiveTransactionListForContact(widget.contact.id);
+      for (final txn in txns) {
+        await db.softDeleteTransaction(txn.id);
+      }
+      await db.upsertContact(widget.contact.copyWith(
+        updatedAt: DateTime.now(),
+        isDirty: true,
+      ));
+      ref.read(syncEngineProvider).triggerSync();
+    }
+  }
+
+  Future<void> _confirmDeleteAllTransactionsAndContact(BuildContext context) async {
+    final confirmed = await DeleteConfirmDialog.show(
+      context: context,
+      title: 'Delete Everything?',
+      message: 'This will permanently delete all transactions and remove "${widget.contact.name}" from your contacts. This cannot be undone.',
+      confirmLabel: 'Delete All',
+    );
+    if (confirmed == true && context.mounted) {
+      final db = ref.read(dbProvider);
+      final txns = await db.getActiveTransactionListForContact(widget.contact.id);
+      for (final txn in txns) {
+        await db.softDeleteTransaction(txn.id);
+      }
+      await db.softDeleteContact(widget.contact.id);
+      ref.read(syncEngineProvider).triggerSync();
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  Future<void> _confirmArchiveContact(BuildContext context, double balance) async {
+    final isSettled = balance == 0;
+    final message = isSettled
+        ? 'Archive "${widget.contact.name}"? They will be hidden from your contacts but all data will be preserved.'
+        : 'Archive "${widget.contact.name}"? They have an outstanding balance of ${AppTheme.formatAmount(balance.abs())} ${balance > 0 ? '(they owe you)' : '(you owe them)'}. Archiving will hide them from your contacts but preserve all data.';
+
+    final confirmed = await DeleteConfirmDialog.show(
+      context: context,
+      title: 'Archive Contact?',
+      message: message,
+      confirmLabel: 'Archive',
+      icon: Icons.archive_outlined,
+      iconColor: AppTheme.primary,
+      confirmColor: AppTheme.primary,
+    );
+
+    if (confirmed == true && context.mounted) {
+      final db = ref.read(dbProvider);
+      await db.archiveContact(widget.contact.id);
+      ref.read(syncEngineProvider).triggerSync();
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  Future<void> _confirmUnarchiveContact(BuildContext context) async {
+    final confirmed = await DeleteConfirmDialog.show(
+      context: context,
+      title: 'Unarchive Contact?',
+      message: 'Restore "${widget.contact.name}" to your active contacts?',
+      confirmLabel: 'Unarchive',
+      icon: Icons.unarchive_outlined,
+      iconColor: AppTheme.primary,
+      confirmColor: AppTheme.primary,
+    );
+
+    if (confirmed == true && context.mounted) {
+      final db = ref.read(dbProvider);
+      await db.unarchiveContact(widget.contact.id);
+      ref.read(syncEngineProvider).triggerSync();
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+    }
+  }
+
   Future<bool?> _confirmDeleteTransactionDialog(BuildContext context, TransactionModel txn) {
     return DeleteConfirmDialog.show(
       context: context,
@@ -365,39 +454,100 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
             },
             orElse: () => const SizedBox.shrink(),
           ),
-          PopupMenuButton<String>(
-            icon: Icon(
-              Icons.more_vert_rounded,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? AppTheme.darkTextPrimary
-                  : AppTheme.textPrimary,
-            ),
-            position: PopupMenuPosition.under,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            elevation: 4,
-            shadowColor: Colors.black.withValues(alpha: 0.15),
-            color: Theme.of(context).brightness == Brightness.dark
-                ? AppTheme.darkCard
-                : Colors.white,
-            onSelected: (value) {
-              if (value == 'delete') {
-                _confirmDeleteContact(context);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.debitRed),
-                    const SizedBox(width: 10),
-                    const Text('Delete Contact'),
-                  ],
+          txnsState.maybeWhen(
+            data: (txns) {
+              final hasTxns = txns.isNotEmpty;
+              final balance = _calculateContactBalance(txns);
+              return PopupMenuButton<String>(
+                icon: Icon(
+                  Icons.more_vert_rounded,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppTheme.darkTextPrimary
+                      : AppTheme.textPrimary,
                 ),
-              ),
-            ],
+                position: PopupMenuPosition.under,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 4,
+                shadowColor: Colors.black.withValues(alpha: 0.15),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppTheme.darkCard
+                    : Colors.white,
+                onSelected: (value) {
+                  if (value == 'delete') {
+                    _confirmDeleteContact(context);
+                  } else if (value == 'delete_all_txns') {
+                    _confirmDeleteAllTransactions(context);
+                  } else if (value == 'delete_all_txns_and_contact') {
+                    _confirmDeleteAllTransactionsAndContact(context);
+                  } else if (value == 'archive') {
+                    _confirmArchiveContact(context, balance);
+                  } else if (value == 'unarchive') {
+                    _confirmUnarchiveContact(context);
+                  }
+                },
+                itemBuilder: (context) => [
+                  if (hasTxns)
+                    PopupMenuItem(
+                      value: 'delete_all_txns',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_sweep_outlined, size: 18, color: AppTheme.debitRed),
+                          const SizedBox(width: 10),
+                          const Text('Delete All Transactions'),
+                        ],
+                      ),
+                    ),
+                  if (hasTxns)
+                    PopupMenuItem(
+                      value: 'delete_all_txns_and_contact',
+                      child: Row(
+                        children: [
+                          Icon(Icons.person_remove_outlined, size: 18, color: AppTheme.debitRed),
+                          const SizedBox(width: 10),
+                          const Text('Delete Transactions & Contact'),
+                        ],
+                      ),
+                    ),
+                  if (!hasTxns)
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.debitRed),
+                          const SizedBox(width: 10),
+                          const Text('Delete Contact'),
+                        ],
+                      ),
+                    ),
+                  const PopupMenuDivider(),
+                  if (hasTxns && !widget.contact.isArchived)
+                    PopupMenuItem(
+                      value: 'archive',
+                      child: Row(
+                        children: [
+                          Icon(Icons.archive_outlined, size: 18, color: AppTheme.primary),
+                          const SizedBox(width: 10),
+                          const Text('Archive Contact'),
+                        ],
+                      ),
+                    ),
+                  if (hasTxns && widget.contact.isArchived)
+                    PopupMenuItem(
+                      value: 'unarchive',
+                      child: Row(
+                        children: [
+                          Icon(Icons.unarchive_outlined, size: 18, color: AppTheme.primary),
+                          const SizedBox(width: 10),
+                          const Text('Unarchive Contact'),
+                        ],
+                      ),
+                    ),
+                ],
+              );
+            },
+            orElse: () => const SizedBox.shrink(),
           ),
         ],
       ),
@@ -617,11 +767,16 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                                 Color typeColor;
                                 switch (txn.type) {
                                   case 'give':
-                                    typeLabel = 'Gave';
+                                    typeLabel = 'Paid';
                                     typeIcon = Icons.call_made_rounded;
                                     typeColor = AppTheme.debitRed;
                                     break;
                                   case 'take':
+                                    typeLabel = 'Received';
+                                    typeIcon = Icons.call_received_rounded;
+                                    typeColor = AppTheme.creditGreen;
+                                    break;
+                                  case 'receive':
                                     typeLabel = 'Received';
                                     typeIcon = Icons.call_received_rounded;
                                     typeColor = AppTheme.creditGreen;

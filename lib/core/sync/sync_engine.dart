@@ -196,6 +196,7 @@ class SyncEngine {
         'created_at': contact.createdAt.toUtc().toIso8601String(),
         'updated_at': contact.updatedAt.toUtc().toIso8601String(),
         'is_deleted': false,
+        'is_archived': contact.isArchived,
       })) {
         await db.upsertContact(contact.copyWith(isDirty: false));
       }
@@ -288,7 +289,7 @@ class SyncEngine {
               await db.upsertContact(Contact(
                 id: id, userId: userId, name: _s(d, 'name'), phone: _s(d, 'phone'),
                 createdAt: _dt(d, 'created_at'), updatedAt: remoteUpdatedAt,
-                isDirty: false, isDeleted: false,
+                isDirty: false, isDeleted: false, isArchived: _b(d, 'is_archived'),
               ));
             }
           } else {
@@ -300,7 +301,7 @@ class SyncEngine {
             await db.upsertContact(Contact(
               id: id, userId: userId, name: _s(d, 'name'), phone: _s(d, 'phone'),
               createdAt: _dt(d, 'created_at'), updatedAt: remoteUpdatedAt,
-              isDirty: false, isDeleted: false,
+              isDirty: false, isDeleted: false, isArchived: _b(d, 'is_archived'),
             ));
           }
         }
@@ -308,7 +309,7 @@ class SyncEngine {
         await db.upsertContact(Contact(
           id: id, userId: userId, name: _s(d, 'name'), phone: _s(d, 'phone'),
           createdAt: _dt(d, 'created_at'), updatedAt: remoteUpdatedAt,
-          isDirty: false, isDeleted: false,
+          isDirty: false, isDeleted: false, isArchived: _b(d, 'is_archived'),
         ));
       }
     }
@@ -335,7 +336,7 @@ class SyncEngine {
           await db.upsertContact(Contact(
             id: contactId, userId: userId, name: _s(cRes.data, 'name'), phone: _s(cRes.data, 'phone'),
             createdAt: _dt(cRes.data, 'created_at'), updatedAt: _dt(cRes.data, 'updated_at'),
-            isDirty: false, isDeleted: false,
+            isDirty: false, isDeleted: false, isArchived: _b(cRes.data, 'is_archived'),
           ));
         } else {
           Sentry.captureException(Exception('Failed to fetch contact $contactId for transaction'));

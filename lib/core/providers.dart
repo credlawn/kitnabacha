@@ -199,6 +199,11 @@ final contactsStreamProvider = StreamProvider.family<List<Contact>, String>((ref
   return db.watchContacts(userId);
 });
 
+final archivedContactsStreamProvider = StreamProvider.family<List<Contact>, String>((ref, userId) {
+  final db = ref.watch(dbProvider);
+  return db.watchArchivedContacts(userId);
+});
+
 final transactionsStreamProvider = StreamProvider.family<List<TransactionModel>, String>((ref, contactId) {
   final db = ref.watch(dbProvider);
   return db.watchTransactionsForContact(contactId);
