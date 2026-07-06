@@ -9,6 +9,7 @@ import '../auth/auth_screen.dart';
 import '../ledger/ledger_screen.dart';
 import '../expense/expense_dashboard.dart';
 import '../expense/widgets/add_expense_sheet.dart';
+import '../settings/settings_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -35,8 +36,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     List<Contact> contacts,
     List<TransactionModel> txns,
   ) {
-    double totalReceivable = 0; // Kitna Lena Hai (Sum of positive contact balances)
-    double totalPayable = 0;    // Kitna Dena Hai (Sum of negative contact balances)
+    double totalReceivable = 0;
+    double totalPayable = 0;
 
     for (final contact in contacts) {
       // Get all transactions for this contact
@@ -306,13 +307,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('कितना बचा ?'),
+            Text('Ledgeo', style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.primary,
+            )),
             Text(
-              'Hisab Kitab Ledger',
-              style: TextStyle(fontSize: 12, color: AppTheme.secondaryText),
+              'Personal Ledger',
+              style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary),
             ),
           ],
         ),
@@ -320,18 +325,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           if (widget.userId != 'guest') ...[
             _buildSyncIndicator(syncStatus),
             const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(Icons.logout_rounded),
-              tooltip: 'Logout',
-              onPressed: () => ref.read(authNotifierProvider.notifier).logout(),
-            ),
-          ] else
-            TextButton.icon(
-              onPressed: _showAuthModal,
-              icon: const Icon(Icons.cloud_upload_rounded, color: AppTheme.primaryLight),
-              label: const Text('Backup Now', style: TextStyle(color: AppTheme.primaryLight, fontWeight: FontWeight.bold)),
-            ),
-          const SizedBox(width: 8),
+          ],
+          IconButton(
+            icon: const Icon(Icons.settings_rounded),
+            tooltip: 'Settings',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: _currentTab == 0
@@ -359,62 +359,63 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           padding: const EdgeInsets.all(16.0),
                           sliver: SliverToBoxAdapter(
                             child: Container(
-                              decoration: AppTheme.glassmorphicBox(
-                                context: context,
-                                gradient: net >= 0
-                                    ? (net > 0
-                                        ? AppTheme.greenCardGradient
-                                        : (Theme.of(context).brightness == Brightness.dark
-                                            ? AppTheme.premiumCardGradient
-                                            : AppTheme.premiumCardLightGradient))
-                                    : AppTheme.redCardGradient,
+                              decoration: AppTheme.cardDecoration(
+                                isDark: Theme.of(context).brightness == Brightness.dark,
                               ),
                               padding: const EdgeInsets.all(24.0),
                               child: Column(
                                 children: [
-                                  const Text(
+                                  Text(
                                     'NET OUTSTANDING',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w800,
-                                      color: Colors.white70,
+                                      color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary,
                                       letterSpacing: 1,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
                                     AppTheme.formatAmount(net.abs()),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 36,
                                       fontWeight: FontWeight.w900,
-                                      color: Colors.white,
+                                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.textPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     net > 0
-                                        ? 'Lena Hai (Receivable)'
+                                        ? 'Receivable'
                                         : net < 0
-                                            ? 'Dena Hai (Payable)'
+                                            ? 'Payable'
                                             : 'No outstanding balance',
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold,
-                                      color: net >= 0 ? Colors.greenAccent : Colors.redAccent,
+                                      color: net >= 0 ? AppTheme.creditGreen : AppTheme.debitRed,
                                     ),
                                   ),
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 16.0),
-                                    child: Divider(color: Colors.white12, height: 1),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                    child: Divider(
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? AppTheme.darkBorder
+                                          : AppTheme.lightBorder,
+                                      height: 1,
+                                    ),
                                   ),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                     children: [
                                       Column(
                                         children: [
-                                          const Text(
-                                            'Kitna Lena Hai',
-                                            style: TextStyle(fontSize: 12, color: Colors.white70),
+                                          Text(
+                                            'Total Receivable',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary,
+                                            ),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
@@ -422,7 +423,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                             style: const TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              color: Colors.greenAccent,
+                                              color: AppTheme.creditGreen,
                                             ),
                                           ),
                                         ],
@@ -430,13 +431,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       Container(
                                         height: 30,
                                         width: 1,
-                                        color: Colors.white12,
+                                        color: Theme.of(context).brightness == Brightness.dark
+                                            ? AppTheme.darkBorder
+                                            : AppTheme.lightBorder,
                                       ),
                                       Column(
                                         children: [
-                                          const Text(
-                                            'Kitna Dena Hai',
-                                            style: TextStyle(fontSize: 12, color: Colors.white70),
+                                          Text(
+                                            'Total Payable',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary,
+                                            ),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
@@ -444,7 +450,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                             style: const TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              color: Colors.redAccent,
+                                              color: AppTheme.debitRed,
                                             ),
                                           ),
                                         ],
@@ -484,19 +490,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 14,
-                                                color: Theme.of(context).brightness == Brightness.dark
-                                                    ? Colors.white
-                                                    : AppTheme.lightTextPrimary,
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? AppTheme.darkTextPrimary
+                                          : AppTheme.textPrimary,
                                               ),
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
                                               'Save your ledger to the cloud to prevent data loss.',
                                               style: TextStyle(
-                                                color: Theme.of(context).brightness == Brightness.dark
-                                                    ? AppTheme.secondaryText
-                                                    : AppTheme.lightTextSecondary,
-                                                fontSize: 11,
+                                                  color: Theme.of(context).brightness == Brightness.dark
+                                                      ? AppTheme.darkTextSecondary
+                                                      : AppTheme.textSecondary,
+                                                  fontSize: 11,
                                               ),
                                             ),
                                           ],
@@ -536,8 +542,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 prefixIcon: Icon(
                                   Icons.search,
                                   color: Theme.of(context).brightness == Brightness.dark
-                                      ? AppTheme.secondaryText
-                                      : AppTheme.lightTextSecondary,
+                                      ? AppTheme.darkTextSecondary
+                                      : AppTheme.textSecondary,
                                 ),
                                 suffixIcon: _searchQuery.isNotEmpty
                                     ? IconButton(
@@ -592,9 +598,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                         Text(
                                           _searchQuery.isNotEmpty
                                               ? 'No matching contacts found'
-                                              : 'Aapne abhi tak koi contact add nahi kiya hai.',
+                                              : 'No contacts yet.\nTap + to add your first contact!',
                                           textAlign: TextAlign.center,
-                                          style: const TextStyle(color: AppTheme.secondaryText),
+                                          style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary),
                                         ),
                                       ],
                                     ),
@@ -669,8 +675,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                                         fontSize: 16,
                                                         fontWeight: FontWeight.bold,
                                                         color: Theme.of(context).brightness == Brightness.dark
-                                                            ? Colors.white
-                                                            : AppTheme.lightTextPrimary,
+                                                            ? AppTheme.darkTextPrimary
+                                                            : AppTheme.textPrimary,
                                                       ),
                                                     ),
                                                     if (contact.phone != null) ...[
@@ -680,8 +686,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                                         style: TextStyle(
                                                           fontSize: 12,
                                                           color: Theme.of(context).brightness == Brightness.dark
-                                                              ? AppTheme.secondaryText
-                                                              : AppTheme.lightTextSecondary,
+                                                              ? AppTheme.darkTextSecondary
+                                                              : AppTheme.textSecondary,
                                                         ),
                                                       ),
                                                     ],
@@ -710,7 +716,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                                   if (cBalance != 0) ...[
                                                     const SizedBox(height: 2),
                                                     Text(
-                                                      cBalance > 0 ? 'Lena Hai' : 'Dena Hai',
+                                                      cBalance > 0 ? 'Receivable' : 'Payable',
                                                       style: TextStyle(
                                                         fontSize: 10,
                                                         fontWeight: FontWeight.bold,
@@ -788,12 +794,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             NavigationDestination(
               icon: Icon(Icons.menu_book_rounded),
               selectedIcon: Icon(Icons.menu_book_rounded, color: AppTheme.primary),
-              label: 'Ledger (हिसाब)',
+              label: 'Ledger',
             ),
             NavigationDestination(
               icon: Icon(Icons.account_balance_wallet_rounded),
               selectedIcon: Icon(Icons.account_balance_wallet_rounded, color: AppTheme.primary),
-              label: 'Expenses (खर्चा)',
+              label: 'Expenses',
             ),
           ],
         ),

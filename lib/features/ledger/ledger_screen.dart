@@ -42,12 +42,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     final txns = await ref.read(dbProvider).getActiveTransactionsForContact(widget.contact.id);
     if (txns > 0) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Cannot delete — $txns transaction(s) exist. Delete them first.'),
-          backgroundColor: AppTheme.debitRed,
-        ),
-      );
+      AppTheme.showSnackBar(context, 'Cannot delete — $txns transaction(s) exist. Delete them first.', backgroundColor: AppTheme.debitRed);
       return;
     }
 
@@ -132,9 +127,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
   // Copy structured payment reminder text to clipboard
   void _copyPaymentReminder(BuildContext context, double balance) {
     if (balance == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Balance is settled. No reminder needed.')),
-      );
+      AppTheme.showSnackBar(context, 'Balance is settled. No reminder needed.');
       return;
     }
 
@@ -146,29 +139,18 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
       reminderText = 
           'Hello ${widget.contact.name},\n'
           'This is a friendly reminder that your outstanding balance in our ledger is $formattedAmt. '
-          'Please make the payment as soon as possible. Thank you!\n\n'
-          'नमस्ते ${widget.contact.name},\n'
-          'यह एक विनम्र अनुस्मारक है कि हमारे हिसाब-किताब का बकाया $formattedAmt है। '
-          'कृपया जल्द ही भुगतान करें। धन्यवाद!';
+          'Please make the payment as soon as possible. Thank you!';
     } else {
       // We owe them money
       reminderText = 
           'Hello ${widget.contact.name},\n'
           'I wanted to remind you that I owe you $formattedAmt in our ledger. '
-          'I am processing the payment and will clear it soon. Thank you!\n\n'
-          'नमस्ते ${widget.contact.name},\n'
-          'मैं आपको याद दिलाना चाहता था कि मुझे आपको $formattedAmt देने हैं। '
-          'मैं जल्द ही इसका भुगतान कर दूंगा। धन्यवाद!';
+          'I am processing the payment and will clear it soon. Thank you!';
     }
 
     Clipboard.setData(ClipboardData(text: reminderText)).then((_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Reminder for ${widget.contact.name} copied to clipboard!'),
-          backgroundColor: AppTheme.primary,
-        ),
-      );
+      AppTheme.showSnackBar(context, 'Reminder for ${widget.contact.name} copied to clipboard!');
     });
   }
 
@@ -499,8 +481,8 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                             const SizedBox(height: 12),
                             Text(
                               _selectedMonth != null
-                                  ? 'Is mahine me koi transaction nahi mila.'
-                                  : 'Koi transaction nahi mila.\nNiche diye buttons se hisab shuru karein!',
+                                  ? 'No transactions this month.'
+                                  : 'No transactions yet.\nTap below to add one!',
                               textAlign: TextAlign.center,
                               style: const TextStyle(color: AppTheme.secondaryText),
                             ),
@@ -599,7 +581,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
         loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
-      // 3. Bottom persistent dual buttons: "Maine Diye" & "Maine Liye"
+      // 3. Bottom persistent dual buttons: "I Paid" & "I Received"
       bottomSheet: Consumer(
         builder: (context, ref, child) {
           final txnsData = ref.watch(transactionsStreamProvider(widget.contact.id));
@@ -630,7 +612,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                       children: [
                         Icon(Icons.remove_circle_outline, size: 18),
                         SizedBox(width: 8),
-                        Text('Maine Diye (-)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text('I Paid (-)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                       ],
                     ),
                   ),
@@ -652,7 +634,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                       children: [
                         Icon(Icons.add_circle_outline, size: 18),
                         SizedBox(width: 8),
-                        Text('Maine Liye (+)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text('I Received (+)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                       ],
                     ),
                   ),

@@ -162,9 +162,7 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
 
     final amount = double.tryParse(_amountController.text) ?? 0.0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid amount greater than 0')),
-      );
+      AppTheme.showSnackBar(context, 'Please enter a valid amount greater than 0');
       return;
     }
 

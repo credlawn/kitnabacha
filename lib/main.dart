@@ -5,6 +5,7 @@ import 'core/providers.dart';
 import 'core/pocketbase/pocketbase_client.dart';
 import 'core/theme/app_theme.dart';
 import 'features/dashboard/dashboard_screen.dart';
+import 'features/onboarding/onboarding_screen.dart';
 
 void main() async {
   await SentryFlutter.init(
@@ -25,15 +26,21 @@ void main() async {
   );
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  bool _showOnboarding = true;
+
+  @override
+  Widget build(BuildContext context) {
     final userId = ref.watch(userIdProvider);
     final authState = ref.watch(authStateProvider);
 
-    // Trigger sync automatically once user session is loaded
     authState.whenData((user) {
       if (user != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -43,55 +50,55 @@ class MyApp extends ConsumerWidget {
     });
 
     return MaterialApp(
-      title: 'Kitna Bacha',
+      title: 'Ledgeo',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,
-      home: authState.when(
-        data: (user) => DashboardScreen(userId: userId),
-        loading: () => const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(color: AppTheme.primary),
-          ),
-        ),
-        error: (err, stack) => Scaffold(
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline_rounded, color: AppTheme.debitRed, size: 48),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Configuration Required',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                    const Text(
-                      'Please check your PocketBase server is running and the URL is correct.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: AppTheme.secondaryText, fontSize: 13),
+      home: _showOnboarding
+          ? OnboardingScreen(onComplete: () => setState(() => _showOnboarding = false))
+          : authState.when(
+              data: (user) => DashboardScreen(userId: userId),
+              loading: () => const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(color: AppTheme.primary),
+                ),
+              ),
+              error: (err, stack) => Scaffold(
+                body: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline_rounded, color: AppTheme.debitRed, size: 48),
+                        SizedBox(height: 16),
+                        Text(
+                          'Configuration Required',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Please check your PocketBase server is running and the URL is correct.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppTheme.secondaryText, fontSize: 13),
+                        ),
+                        SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: () => ref.invalidate(authStateProvider),
+                          icon: Icon(Icons.refresh_rounded),
+                          label: Text('Try Again'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      ref.invalidate(authStateProvider);
-                    },
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Try Again'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
-                    ),
                   ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }

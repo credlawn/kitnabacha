@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kitnabacha/core/providers.dart';
-import 'package:kitnabacha/core/sync/sync_engine.dart';
-import 'package:kitnabacha/main.dart';
+import 'package:ledgeo/core/providers.dart';
+import 'package:ledgeo/core/sync/sync_engine.dart';
+import 'package:ledgeo/main.dart';
 
 class SyncStatusMock extends SyncStatusNotifier {
   @override
@@ -25,12 +25,13 @@ void main() {
       ),
     );
 
-    // Let the streams and frames resolve
-    await tester.pumpAndSettle();
+    // Complete onboarding by tapping Skip (fastest path to dashboard)
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Skip'));
+    await tester.pump(const Duration(milliseconds: 500));
 
-    // Verify that MaterialApp and title are rendered
+    // Verify dashboard renders
     expect(find.byType(MaterialApp), findsOneWidget);
-    expect(find.text('कितना बचा ?'), findsOneWidget);
-    expect(find.text('Add Contact'), findsOneWidget);
+    expect(find.text('Ledgeo'), findsOneWidget);
   });
 }

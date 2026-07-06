@@ -587,7 +587,7 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                                     ),
                                     const SizedBox(height: 12),
                                     const Text(
-                                      'Koi kharcha nahi mila.\nNiche diye (+) button se kharcha add karein!',
+                                      'No expenses yet.\nTap + to add one!',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(color: AppTheme.secondaryText),
                                     ),

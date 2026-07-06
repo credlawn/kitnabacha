@@ -1,6 +1,6 @@
-# kitnabacha
+# Ledgeo
 
-A new Flutter project.
+Personal expense & ledger tracker.
 
 ## Getting Started
 

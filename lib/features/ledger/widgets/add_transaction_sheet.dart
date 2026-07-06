@@ -10,7 +10,7 @@ import '../../../core/theme/app_theme.dart';
 class AddTransactionSheet extends ConsumerStatefulWidget {
   final Contact contact;
   final String userId;
-  final bool isOutflow; // True if "Maine Diye" (I Gave / Paid), False if "Maine Liye" (I Got / Borrowed)
+  final bool isOutflow; // True if I Paid, False if I Received
   final double currentBalance;
   final TransactionModel? transactionToEdit;
 
@@ -162,7 +162,7 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
   Widget build(BuildContext context) {
     final title = widget.transactionToEdit != null
         ? 'Edit Entry'
-        : (widget.isOutflow ? 'Maine Diye (I Gave)' : 'Maine Liye (I Got)');
+        : (widget.isOutflow ? 'I Paid' : 'I Received');
     final actionColor = widget.isOutflow ? AppTheme.debitRed : AppTheme.creditGreen;
 
     return Padding(

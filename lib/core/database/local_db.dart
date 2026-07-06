@@ -242,7 +242,7 @@ class AppDatabase extends _$AppDatabase {
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'kitnabacha.sqlite'));
+    final file = File(p.join(dbFolder.path, 'ledgeo.sqlite'));
     return NativeDatabase.createInBackground(
       file,
       setup: (db) async => db.execute('PRAGMA foreign_keys = ON'),

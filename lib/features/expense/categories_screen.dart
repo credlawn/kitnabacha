@@ -319,12 +319,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     final expenses = await ref.read(dbProvider).getActiveExpensesForCategory(category.id);
     if (expenses > 0) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Cannot delete — $expenses expense(s) use this category. Remove them first.'),
-          backgroundColor: AppTheme.debitRed,
-        ),
-      );
+      AppTheme.showSnackBar(context, 'Cannot delete — $expenses expense(s) use this category. Remove them first.', backgroundColor: AppTheme.debitRed);
       return;
     }
 
