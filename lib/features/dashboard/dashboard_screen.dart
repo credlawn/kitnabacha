@@ -5,7 +5,6 @@ import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_engine.dart';
 import '../../core/theme/app_theme.dart';
-import '../auth/auth_screen.dart';
 import '../ledger/ledger_screen.dart';
 import '../expense/expense_dashboard.dart';
 import '../expense/widgets/add_expense_sheet.dart';
@@ -268,10 +267,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  void _showAuthModal() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen()));
-  }
-
   @override
   Widget build(BuildContext context) {
     final contactsState = ref.watch(contactsStreamProvider(widget.userId));
@@ -447,73 +442,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ),
                           ),
                         ),
-
-                        // 1b. Guest Warning Banner
-                        if (widget.userId == 'guest')
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 16.0),
-                              child: InkWell(
-                                onTap: _showAuthModal,
-                                borderRadius: BorderRadius.circular(16),
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: AppTheme.glassmorphicBox(
-                                    context: context,
-                                    color: AppTheme.warningOrange.withValues(alpha: 0.08),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.cloud_off_rounded, color: AppTheme.warningOrange, size: 24),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Cloud Backup is Disabled',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                      color: Theme.of(context).brightness == Brightness.dark
-                                          ? AppTheme.darkTextPrimary
-                                          : AppTheme.textPrimary,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              'Save your ledger to the cloud to prevent data loss.',
-                                              style: TextStyle(
-                                                  color: Theme.of(context).brightness == Brightness.dark
-                                                      ? AppTheme.darkTextSecondary
-                                                      : AppTheme.textSecondary,
-                                                  fontSize: 11,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.warningOrange.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: const Text(
-                                          'Sync Now',
-                                          style: TextStyle(
-                                            color: AppTheme.warningOrange,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
 
                         // 2. Search Box
                         SliverPadding(
