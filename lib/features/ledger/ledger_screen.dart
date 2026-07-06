@@ -24,7 +24,6 @@ class LedgerScreen extends ConsumerStatefulWidget {
 class _LedgerScreenState extends ConsumerState<LedgerScreen> {
   DateTime? _selectedMonth;
 
-  // Calculate current contact net balance from transactions list
   double _calculateContactBalance(List<TransactionModel> txns) {
     double balance = 0;
     for (final txn in txns) {
@@ -37,7 +36,6 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     return balance;
   }
 
-  // Delete Contact confirmation dialog
   Future<void> _confirmDeleteContact(BuildContext context) async {
     final txns = await ref.read(dbProvider).getActiveTransactionsForContact(widget.contact.id);
     if (txns > 0) {
@@ -64,7 +62,6 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                 final db = ref.read(dbProvider);
                 await db.softDeleteContact(widget.contact.id);
                 ref.read(syncEngineProvider).triggerSync();
-                
                 if (context.mounted) {
                   Navigator.pop(context);
                   Navigator.pop(context);
@@ -78,7 +75,6 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     );
   }
 
-  // Reusable delete confirmation dialog returning true/false
   Future<bool?> _confirmDeleteTransactionDialog(BuildContext context, TransactionModel txn) {
     return showDialog<bool>(
       context: context,
@@ -102,21 +98,16 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     );
   }
 
-  // Handle transaction soft-delete logic
   Future<void> _deleteTransaction(WidgetRef ref, TransactionModel txn) async {
     final db = ref.read(dbProvider);
     await db.softDeleteTransaction(txn.id);
-    
-    // Update contact updatedAt timestamp
     await db.upsertContact(widget.contact.copyWith(
       updatedAt: DateTime.now(),
       isDirty: true,
     ));
-
     ref.read(syncEngineProvider).triggerSync();
   }
 
-  // Long-press transaction deletion confirmation
   void _confirmDeleteTransaction(BuildContext context, WidgetRef ref, TransactionModel txn) async {
     final confirmed = await _confirmDeleteTransactionDialog(context, txn);
     if (confirmed == true) {
@@ -124,7 +115,6 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     }
   }
 
-  // Copy structured payment reminder text to clipboard
   void _copyPaymentReminder(BuildContext context, double balance) {
     if (balance == 0) {
       AppTheme.showSnackBar(context, 'Balance is settled. No reminder needed.');
@@ -135,13 +125,11 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     String reminderText;
 
     if (balance > 0) {
-      // They owe us money
       reminderText = 
           'Hello ${widget.contact.name},\n'
           'This is a friendly reminder that your outstanding balance in our ledger is $formattedAmt. '
           'Please make the payment as soon as possible. Thank you!';
     } else {
-      // We owe them money
       reminderText = 
           'Hello ${widget.contact.name},\n'
           'I wanted to remind you that I owe you $formattedAmt in our ledger. '
@@ -154,7 +142,6 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     });
   }
 
-  // Open add transaction sheet
   void _openAddTransactionSheet(BuildContext context, bool isOutflow, double currentBalance) {
     showModalBottomSheet(
       context: context,
@@ -169,7 +156,6 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     );
   }
 
-  // Open edit transaction sheet
   void _openEditTransactionSheet(BuildContext context, TransactionModel txn, double currentBalance) {
     showModalBottomSheet(
       context: context,
@@ -185,94 +171,140 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     );
   }
 
-  // Show Bottom Sheet to Pick Month Filter
   void _showMonthPicker(BuildContext context, List<DateTime> uniqueMonths) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        return Material(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          clipBehavior: Clip.antiAlias,
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(
-                  color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
-                  width: 1,
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkBg : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Filter by Month',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Filter by Month',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.4,
                   ),
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: [
-                      // Option: All Time
-                      ListTile(
-                        leading: const Icon(Icons.all_inclusive_rounded, color: AppTheme.primary),
-                        title: const Text('All Time (Lifetime)'),
-                        trailing: _selectedMonth == null
-                            ? const Icon(Icons.check_circle_rounded, color: AppTheme.primary)
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  tileColor: _selectedMonth == null
+                      ? AppTheme.primary.withValues(alpha: 0.08)
+                      : null,
+                  leading: Icon(
+                    Icons.all_inclusive_rounded,
+                    color: _selectedMonth == null ? AppTheme.primary : AppTheme.secondaryText,
+                    size: 20,
+                  ),
+                  title: Text(
+                    'All Time',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _selectedMonth == null
+                          ? AppTheme.primary
+                          : isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
+                    ),
+                  ),
+                  trailing: _selectedMonth == null
+                      ? Icon(Icons.check_rounded, color: AppTheme.primary, size: 20)
+                      : null,
+                  onTap: () {
+                    setState(() => _selectedMonth = null);
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+              const Divider(height: 1),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.4,
+                ),
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  children: uniqueMonths.map((month) {
+                    final label = DateFormat('MMMM yyyy').format(month);
+                    final isSelected = _selectedMonth != null &&
+                        _selectedMonth!.year == month.year &&
+                        _selectedMonth!.month == month.month;
+
+                    return Material(
+                      color: Colors.transparent,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        tileColor: isSelected
+                            ? AppTheme.primary.withValues(alpha: 0.08)
+                            : null,
+                        leading: Icon(
+                          Icons.calendar_month_rounded,
+                          color: isSelected ? AppTheme.primary : AppTheme.secondaryText,
+                          size: 20,
+                        ),
+                        title: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected
+                                ? AppTheme.primary
+                                : isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? Icon(Icons.check_rounded, color: AppTheme.primary, size: 20)
                             : null,
                         onTap: () {
-                          setState(() => _selectedMonth = null);
+                          setState(() => _selectedMonth = month);
                           Navigator.pop(context);
                         },
                       ),
-                      const Divider(),
-                      // Options for each month
-                      ...uniqueMonths.map((month) {
-                        final label = DateFormat('MMMM yyyy').format(month);
-                        final formattedFilter = DateFormat('MMM-yy').format(month);
-                        final isSelected = _selectedMonth != null &&
-                            _selectedMonth!.year == month.year &&
-                            _selectedMonth!.month == month.month;
-
-                        return ListTile(
-                          leading: const Icon(Icons.calendar_month_rounded),
-                          title: Text(label),
-                          subtitle: Text(formattedFilter),
-                          trailing: isSelected
-                              ? const Icon(Icons.check_circle_rounded, color: AppTheme.primary)
-                              : null,
-                          onTap: () {
-                            setState(() => _selectedMonth = month);
-                            Navigator.pop(context);
-                          },
-                        );
-                      }),
-                    ],
-                  ),
+                    );
+                  }).toList(),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -288,16 +320,30 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.contact.name),
+            Text(
+              widget.contact.name,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppTheme.darkTextPrimary
+                    : AppTheme.textPrimary,
+              ),
+            ),
             if (widget.contact.phone != null)
               Text(
                 widget.contact.phone!,
-                style: const TextStyle(fontSize: 12, color: AppTheme.secondaryText),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppTheme.darkTextSecondary
+                      : AppTheme.lightTextSecondary,
+                ),
               ),
           ],
         ),
         actions: [
-          // Dynamic Month Filter Action
           txnsState.maybeWhen(
             data: (txns) {
               final uniqueMonths = txns
@@ -310,28 +356,37 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                   ? 'All'
                   : DateFormat('MMM-yy').format(_selectedMonth!);
 
-              return Container(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                child: TextButton.icon(
-                  onPressed: () => _showMonthPicker(context, uniqueMonths),
-                  style: TextButton.styleFrom(
-                    backgroundColor: Theme.of(context).brightness == Brightness.dark
-                        ? AppTheme.darkBorder
-                        : AppTheme.lightBorder,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppTheme.darkBorder.withValues(alpha: 0.5)
+                        : AppTheme.lightBorder.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  icon: const Icon(Icons.calendar_month_rounded, size: 14, color: AppTheme.primary),
-                  label: Text(
-                    filterLabel,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white
-                          : AppTheme.lightTextPrimary,
+                  child: InkWell(
+                    onTap: () => _showMonthPicker(context, uniqueMonths),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.calendar_month_rounded, size: 14, color: AppTheme.primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            filterLabel,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white
+                                  : AppTheme.lightTextPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -339,27 +394,46 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
             },
             orElse: () => const SizedBox.shrink(),
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.debitRed),
-            tooltip: 'Delete Contact',
-            onPressed: () => _confirmDeleteContact(context),
+          PopupMenuButton<String>(
+            icon: Icon(
+              Icons.more_vert_rounded,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppTheme.darkTextPrimary
+                  : AppTheme.textPrimary,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            onSelected: (value) {
+              if (value == 'delete') {
+                _confirmDeleteContact(context);
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.debitRed),
+                    const SizedBox(width: 10),
+                    const Text('Delete Contact'),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
         ],
       ),
       body: txnsState.when(
         data: (txns) {
           final lifetimeBalance = _calculateContactBalance(txns);
 
-          // Get dynamic unique months for list filtering
           final uniqueMonths = txns
               .map((t) => DateTime(t.date.year, t.date.month))
               .toSet()
               .toList();
           uniqueMonths.sort((a, b) => b.compareTo(a));
 
-          // Filter transactions if a month is selected
           final filteredTxns = _selectedMonth == null
               ? txns
               : txns.where((t) {
@@ -371,94 +445,127 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
 
           return Column(
             children: [
-              // 1. Contact Balance Card Header (Shows filtered outstanding balance)
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Container(
-                  decoration: AppTheme.glassmorphicBox(
-                    context: context,
-                    gradient: displayBalance >= 0
-                        ? (displayBalance > 0
-                            ? AppTheme.greenCardGradient
-                            : (Theme.of(context).brightness == Brightness.dark
-                                ? AppTheme.premiumCardGradient
-                                : AppTheme.premiumCardLightGradient))
-                        : AppTheme.redCardGradient,
+              // Balance header
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppTheme.darkCard
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppTheme.darkBorder
+                        : AppTheme.lightBorder,
                   ),
-                  padding: const EdgeInsets.all(18.0),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Row(
                     children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: displayBalance > 0
+                              ? AppTheme.creditGreen.withValues(alpha: 0.12)
+                              : displayBalance < 0
+                                  ? AppTheme.debitRed.withValues(alpha: 0.12)
+                                  : AppTheme.secondaryText.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          displayBalance > 0
+                              ? Icons.arrow_downward_rounded
+                              : displayBalance < 0
+                                  ? Icons.arrow_upward_rounded
+                                  : Icons.check_circle_outline_rounded,
+                          color: displayBalance > 0
+                              ? AppTheme.creditGreen
+                              : displayBalance < 0
+                                  ? AppTheme.debitRed
+                                  : AppTheme.secondaryText,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               displayBalance > 0
-                                  ? 'THEY OWE YOU (LENA HAI)'
+                                  ? 'To Receive'
                                   : displayBalance < 0
-                                      ? 'YOU OWE THEM (DENA HAI)'
-                                      : 'SETTLED (HISAB BARABAR)',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white70,
-                                letterSpacing: 0.8,
+                                      ? 'To Pay'
+                                      : 'Settled',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? AppTheme.darkTextSecondary
+                                    : AppTheme.lightTextSecondary,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             Text(
                               AppTheme.formatAmount(displayBalance.abs()),
-                              style: const TextStyle(
-                                fontSize: 28,
+                              style: TextStyle(
+                                fontSize: 20,
                                 fontWeight: FontWeight.w900,
-                                color: Colors.white,
+                                color: displayBalance > 0
+                                    ? AppTheme.creditGreen
+                                    : displayBalance < 0
+                                        ? AppTheme.debitRed
+                                        : Theme.of(context).brightness == Brightness.dark
+                                            ? AppTheme.darkTextSecondary
+                                            : AppTheme.lightTextSecondary,
                               ),
                             ),
                           ],
                         ),
                       ),
                       if (displayBalance != 0)
-                        ElevatedButton.icon(
+                        IconButton(
                           onPressed: () => _copyPaymentReminder(context, lifetimeBalance),
-                          icon: const Icon(Icons.share_rounded, size: 16),
-                          label: const Text('Reminder', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white12,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                          icon: Icon(
+                            Icons.content_copy_rounded,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? AppTheme.darkTextSecondary
+                                : AppTheme.lightTextSecondary,
+                            size: 20,
                           ),
+                          tooltip: 'Copy Reminder',
                         ),
                     ],
                   ),
                 ),
               ),
 
-              // Filter sub-header info text if filtered
               if (_selectedMonth != null)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Transactions in ${DateFormat('MMMM yyyy').format(_selectedMonth!)}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.secondaryText,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? AppTheme.darkTextSecondary
+                              : AppTheme.lightTextSecondary,
                         ),
                       ),
                       InkWell(
                         onTap: () => setState(() => _selectedMonth = null),
                         child: const Text(
-                          'Clear Filter',
+                          'Clear',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryLight,
+                            color: AppTheme.primary,
                           ),
                         ),
                       ),
@@ -466,7 +573,6 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                   ),
                 ),
 
-              // 2. Chat-feed style transaction ledger
               Expanded(
                 child: filteredTxns.isEmpty
                     ? Center(
@@ -482,97 +588,192 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                             Text(
                               _selectedMonth != null
                                   ? 'No transactions this month.'
-                                  : 'No transactions yet.\nTap below to add one!',
-                              textAlign: TextAlign.center,
+                                  : 'No transactions yet.',
                               style: const TextStyle(color: AppTheme.secondaryText),
                             ),
                           ],
                         ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 90),
-                        reverse: false,
-                        itemCount: filteredTxns.length,
-                        itemBuilder: (context, index) {
-                          // Display in descending order (newest first, oldest last)
-                          final txn = filteredTxns[index];
-                          final isOutflow = txn.type == 'give' || txn.type == 'pay';
-                          final dateStr = DateFormat('dd MMM yyyy').format(txn.date);
-                          final syncIcon = txn.isDirty
-                              ? const Icon(Icons.access_time_rounded, size: 11, color: AppTheme.warningOrange)
-                              : const Icon(Icons.done_all_rounded, size: 11, color: AppTheme.primaryLight);
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
+                        children: () {
+                          final Map<String, List<TransactionModel>> groups = {};
+                          for (final txn in filteredTxns) {
+                            final key = DateFormat('yyyy-MM-dd').format(txn.date);
+                            groups.putIfAbsent(key, () => []);
+                            groups[key]!.add(txn);
+                          }
+                          final dateKeys = groups.keys.toList();
 
-                          // Left aligned is OUTFLOW (I gave / Red card)
-                          // Right aligned is INFLOW (I got / Green card)
-                          return Align(
-                            alignment: isOutflow ? Alignment.centerLeft : Alignment.centerRight,
-                            child: InkWell(
-                              onTap: () => _openEditTransactionSheet(context, txn, lifetimeBalance),
-                              onLongPress: () => _confirmDeleteTransaction(context, ref, txn),
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                margin: const EdgeInsets.symmetric(vertical: 4),
-                                constraints: BoxConstraints(
-                                  maxWidth: MediaQuery.of(context).size.width * 0.75,
-                                ),
-                                decoration: AppTheme.glassmorphicBox(
-                                  context: context,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      isOutflow ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-                                  children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          AppTheme.formatAmount(txn.amount),
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w900,
-                                            color: isOutflow ? AppTheme.debitRed : AppTheme.creditGreen,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    if (txn.description != null) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        txn.description!,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? Colors.white.withValues(alpha: 0.9)
-                                              : Colors.black87,
-                                        ),
-                                      ),
-                                    ],
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          dateStr,
-                                          style: TextStyle(
-                                            fontSize: 9,
-                                            color: Theme.of(context).brightness == Brightness.dark
-                                                ? AppTheme.secondaryText
-                                                : AppTheme.lightTextSecondary,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        syncIcon,
-                                      ],
-                                    ),
-                                  ],
+                          String dateLabel(String key) {
+                            final date = DateTime.parse(key);
+                            final now = DateTime.now();
+                            final today = DateTime(now.year, now.month, now.day);
+                            final diff = today.difference(date).inDays;
+                            if (diff == 0) return 'Today';
+                            if (diff == 1) return 'Yesterday';
+                            return DateFormat('dd MMM yyyy').format(date);
+                          }
+
+                          return [
+                            for (int g = 0; g < dateKeys.length; g++) ...[
+                              if (g > 0)
+                                const SizedBox(height: 8),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 4, top: 8, bottom: 6),
+                                  child: Text(
+                                    dateLabel(dateKeys[g]),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? AppTheme.darkTextSecondary
+                                        : AppTheme.lightTextSecondary,
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
+                              ...groups[dateKeys[g]]!.map((txn) {
+                                final dateStr = DateFormat('dd MMM yyyy').format(txn.date);
+
+                                String typeLabel;
+                                IconData typeIcon;
+                                Color typeColor;
+                                switch (txn.type) {
+                                  case 'give':
+                                    typeLabel = 'Gave';
+                                    typeIcon = Icons.call_made_rounded;
+                                    typeColor = AppTheme.debitRed;
+                                    break;
+                                  case 'take':
+                                    typeLabel = 'Received';
+                                    typeIcon = Icons.call_received_rounded;
+                                    typeColor = AppTheme.creditGreen;
+                                    break;
+                                  case 'return':
+                                    typeLabel = 'Returned';
+                                    typeIcon = Icons.call_received_rounded;
+                                    typeColor = AppTheme.creditGreen;
+                                    break;
+                                  case 'pay':
+                                    typeLabel = 'Paid';
+                                    typeIcon = Icons.call_made_rounded;
+                                    typeColor = AppTheme.debitRed;
+                                    break;
+                                  default:
+                                    typeLabel = txn.type;
+                                    typeIcon = Icons.circle_rounded;
+                                    typeColor = AppTheme.secondaryText;
+                                }
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () => _openEditTransactionSheet(context, txn, lifetimeBalance),
+                                      onLongPress: () => _confirmDeleteTransaction(context, ref, txn),
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).brightness == Brightness.dark
+                                              ? AppTheme.darkCard
+                                              : Colors.white,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: Theme.of(context).brightness == Brightness.dark
+                                                ? AppTheme.darkBorder.withValues(alpha: 0.5)
+                                                : AppTheme.lightBorder.withValues(alpha: 0.8),
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.15 : 0.04),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(typeIcon, size: 18, color: typeColor),
+                                                const SizedBox(width: 10),
+                                                Text(
+                                                  AppTheme.formatAmount(txn.amount),
+                                                  style: TextStyle(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: typeColor,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: typeColor.withValues(alpha: 0.1),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: Text(
+                                                    typeLabel,
+                                                    style: TextStyle(
+                                                      fontSize: 9,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: typeColor,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const Spacer(),
+                                                Text(
+                                                  dateStr,
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Theme.of(context).brightness == Brightness.dark
+                                                        ? AppTheme.darkTextSecondary.withValues(alpha: 0.7)
+                                                        : AppTheme.lightTextSecondary.withValues(alpha: 0.7),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if (txn.description != null && txn.description!.isNotEmpty) ...[
+                                              const SizedBox(height: 6),
+                                              Row(
+                                                children: [
+                                                  const SizedBox(width: 28),
+                                                  Icon(
+                                                    Icons.description_outlined,
+                                                    size: 13,
+                                                    color: Theme.of(context).brightness == Brightness.dark
+                                                        ? AppTheme.darkTextSecondary.withValues(alpha: 0.5)
+                                                        : AppTheme.lightTextSecondary.withValues(alpha: 0.5),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      txn.description!,
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: Theme.of(context).brightness == Brightness.dark
+                                                            ? AppTheme.darkTextSecondary
+                                                            : AppTheme.lightTextSecondary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ];
+                        }(),
                       ),
               ),
             ],
@@ -581,7 +782,6 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
         loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
-      // 3. Bottom persistent dual buttons: "I Paid" & "I Received"
       bottomSheet: Consumer(
         builder: (context, ref, child) {
           final txnsData = ref.watch(transactionsStreamProvider(widget.contact.id));
@@ -593,7 +793,12 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
 
           return Container(
             color: Theme.of(context).scaffoldBackgroundColor,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: MediaQuery.of(context).padding.bottom + 12,
+            ),
             child: Row(
               children: [
                 Expanded(
@@ -612,7 +817,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                       children: [
                         Icon(Icons.remove_circle_outline, size: 18),
                         SizedBox(width: 8),
-                        Text('I Paid (-)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text('Paid', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                       ],
                     ),
                   ),
@@ -634,7 +839,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                       children: [
                         Icon(Icons.add_circle_outline, size: 18),
                         SizedBox(width: 8),
-                        Text('I Received (+)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text('Received', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                       ],
                     ),
                   ),

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+COMMAND=${1:-run}
+
+if [ "$COMMAND" = "run" ]; then
+    echo "Starting Flutter app with PocketBase at http://192.168.29.184:8090..."
+    flutter run --dart-define=POCKETBASE_URL=http://192.168.29.184:8090
+elif [ "$COMMAND" = "build" ] || [ "$COMMAND" = "p" ]; then
+    echo "Building Flutter APK..."
+    flutter build apk --dart-define=POCKETBASE_URL=http://192.168.29.184:8090
+else
+    echo "Usage: ./run {run|p}"
+    exit 1
+fi
