@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
-import '../../core/sync/sync_engine.dart';
 import '../../core/theme/app_theme.dart';
 import '../ledger/ledger_screen.dart';
 import '../expense/expense_dashboard.dart';
 import '../expense/widgets/add_expense_sheet.dart';
+import '../search/search_screen.dart';
+import '../search/expense_search_screen.dart';
 import '../settings/settings_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -20,13 +21,10 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  final _searchController = TextEditingController();
-  String _searchQuery = '';
   int _currentTab = 0;
 
   @override
   void dispose() {
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -67,75 +65,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       'payable': totalPayable,
       'net': totalReceivable - totalPayable,
     };
-  }
-
-  // Build the Sync Status Indicator widget
-  Widget _buildSyncIndicator(SyncStatus status) {
-    IconData icon;
-    Color color;
-    String label;
-    bool isSpinning = false;
-
-    switch (status) {
-      case SyncStatus.synced:
-        icon = Icons.cloud_done_rounded;
-        color = AppTheme.creditGreen;
-        label = 'Synced';
-        break;
-      case SyncStatus.syncing:
-        icon = Icons.sync_rounded;
-        color = AppTheme.warningOrange;
-        label = 'Syncing...';
-        isSpinning = true;
-        break;
-      case SyncStatus.offline:
-        icon = Icons.cloud_off_rounded;
-        color = AppTheme.secondaryText;
-        label = 'Offline Mode';
-        break;
-      case SyncStatus.error:
-        icon = Icons.cloud_sync_rounded;
-        color = AppTheme.debitRed;
-        label = 'Sync Failed';
-        break;
-    }
-
-    return InkWell(
-      onTap: () => ref.read(syncEngineProvider).triggerSync(),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            isSpinning
-                ? SizedBox(
-                    height: 14,
-                    width: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: color,
-                    ),
-                  )
-                : Icon(icon, size: 14, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   // Show Bottom Sheet to Add a New Contact locally-first
@@ -271,7 +200,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final contactsState = ref.watch(contactsStreamProvider(widget.userId));
     final txnsState = ref.watch(allTransactionsStreamProvider(widget.userId));
-    final syncStatus = ref.watch(syncStatusProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -296,16 +224,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
             Text(
-              'Personal Ledger',
+              _currentTab == 0 ? 'Personal Ledger' : 'Expense Tracker',
               style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary),
             ),
           ],
         ),
         actions: [
-          if (widget.userId != 'guest') ...[
-            _buildSyncIndicator(syncStatus),
-            const SizedBox(width: 8),
-          ],
+          IconButton(
+            icon: Icon(Icons.search_rounded, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.primary),
+            tooltip: 'Search',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => _currentTab == 0
+                      ? const SearchScreen()
+                      : const ExpenseSearchScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(Icons.person_rounded, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.primary),
             tooltip: 'Settings',
@@ -323,12 +261,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   final receivable = balances['receivable']!;
                   final payable = balances['payable']!;
 
-                  // Filter contacts by search query
-                  final filteredContacts = contacts.where((contact) {
-                    return contact.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                        (contact.phone ?? '').contains(_searchQuery);
-                  }).toList();
-
                   return RefreshIndicator(
                     onRefresh: () => ref.read(syncEngineProvider).triggerSync(),
                     color: AppTheme.primary,
@@ -342,42 +274,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               decoration: AppTheme.cardDecoration(
                                 isDark: Theme.of(context).brightness == Brightness.dark,
                               ),
-                              padding: const EdgeInsets.all(24.0),
+                              padding: const EdgeInsets.all(20),
                               child: Column(
                                 children: [
-                                  Text(
-                                    'NET OUTSTANDING',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary,
-                                      letterSpacing: 1,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    AppTheme.formatAmount(net.abs()),
-                                    style: TextStyle(
-                                      fontSize: 36,
-                                      fontWeight: FontWeight.w900,
-                                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    net > 0
-                                        ? 'Receivable'
-                                        : net < 0
-                                            ? 'Payable'
-                                            : 'No outstanding balance',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: net >= 0 ? AppTheme.creditGreen : AppTheme.debitRed,
-                                    ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        AppTheme.formatAmount(net.abs()),
+                                        style: TextStyle(
+                                          fontSize: 26,
+                                          fontWeight: FontWeight.w900,
+                                          color: net == 0
+                                              ? (Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary)
+                                              : net > 0
+                                                  ? AppTheme.creditGreen
+                                                  : AppTheme.debitRed,
+                                        ),
+                                      ),
+                                      if (net != 0) ...[
+                                        const SizedBox(width: 8),
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 3),
+                                          child: Text(
+                                            net > 0 ? 'Receivable' : 'Payable',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: (Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary).withValues(alpha: 0.7),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
                                     child: Divider(
                                       color: Theme.of(context).brightness == Brightness.dark
                                           ? AppTheme.darkBorder
@@ -393,7 +326,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                           Text(
                                             'Total Receivable',
                                             style: TextStyle(
-                                              fontSize: 12,
+                                              fontSize: 11,
                                               color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary,
                                             ),
                                           ),
@@ -401,7 +334,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                           Text(
                                             AppTheme.formatAmount(receivable),
                                             style: const TextStyle(
-                                              fontSize: 16,
+                                              fontSize: 15,
                                               fontWeight: FontWeight.bold,
                                               color: AppTheme.creditGreen,
                                             ),
@@ -409,7 +342,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                         ],
                                       ),
                                       Container(
-                                        height: 30,
+                                        height: 28,
                                         width: 1,
                                         color: Theme.of(context).brightness == Brightness.dark
                                             ? AppTheme.darkBorder
@@ -420,7 +353,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                           Text(
                                             'Total Payable',
                                             style: TextStyle(
-                                              fontSize: 12,
+                                              fontSize: 11,
                                               color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary,
                                             ),
                                           ),
@@ -428,7 +361,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                           Text(
                                             AppTheme.formatAmount(payable),
                                             style: const TextStyle(
-                                              fontSize: 16,
+                                              fontSize: 15,
                                               fontWeight: FontWeight.bold,
                                               color: AppTheme.debitRed,
                                             ),
@@ -443,36 +376,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ),
                         ),
 
-                        // 2. Search Box
-                        SliverPadding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          sliver: SliverToBoxAdapter(
-                            child: TextField(
-                              controller: _searchController,
-                              onChanged: (val) => setState(() => _searchQuery = val),
-                              decoration: InputDecoration(
-                                hintText: 'Search contacts by name or phone...',
-                                prefixIcon: Icon(
-                                  Icons.search,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? AppTheme.darkTextSecondary
-                                      : AppTheme.textSecondary,
-                                ),
-                                suffixIcon: _searchQuery.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear),
-                                        onPressed: () {
-                                          _searchController.clear();
-                                          setState(() => _searchQuery = '');
-                                        },
-                                      )
-                                    : null,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // 3. Contacts Header
+                        // 2. Contacts Header
                         SliverPadding(
                           padding: const EdgeInsets.only(left: 20, right: 20, top: 24, bottom: 8),
                           sliver: SliverToBoxAdapter(
@@ -490,8 +394,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ),
                         ),
 
-                        // 4. Contacts list
-                        filteredContacts.isEmpty
+                        // 3. Contacts list
+                        contacts.isEmpty
                             ? SliverFillRemaining(
                                 hasScrollBody: false,
                                 child: Center(
@@ -500,18 +404,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     child: Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Icon(
-                                          _searchQuery.isNotEmpty
-                                              ? Icons.search_off_rounded
-                                              : Icons.people_outline_rounded,
+                                        const Icon(
+                                          Icons.people_outline_rounded,
                                           size: 48,
-                                          color: AppTheme.secondaryText.withValues(alpha: 0.5),
+                                          color: AppTheme.secondaryText,
                                         ),
                                         const SizedBox(height: 12),
                                         Text(
-                                          _searchQuery.isNotEmpty
-                                              ? 'No matching contacts found'
-                                              : 'No contacts yet.\nTap + to add your first contact!',
+                                          'No contacts yet.\nTap + to add your first contact!',
                                           textAlign: TextAlign.center,
                                           style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkTextSecondary : AppTheme.textSecondary),
                                         ),
@@ -523,7 +423,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             : SliverList(
                                 delegate: SliverChildBuilderDelegate(
                                   (context, index) {
-                                    final contact = filteredContacts[index];
+                                    final contact = contacts[index];
 
                                     // Calculate contact-specific balance
                                     final cTxns = txns.where((t) => t.contactId == contact.id).toList();
@@ -653,7 +553,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       ),
                                     );
                                   },
-                                  childCount: filteredContacts.length,
+                                  childCount: contacts.length,
                                 ),
                               ),
                       ],
