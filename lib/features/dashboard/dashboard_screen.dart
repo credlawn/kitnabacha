@@ -261,11 +261,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   final receivable = balances['receivable']!;
                   final payable = balances['payable']!;
 
-                  return RefreshIndicator(
-                    onRefresh: () => ref.read(syncEngineProvider).triggerSync(),
-                    color: AppTheme.primary,
-                    child: CustomScrollView(
-                      slivers: [
+                  return CustomScrollView(
+                    slivers: [
                         // 1. Dashboard Financial Summary Card
                         SliverPadding(
                           padding: const EdgeInsets.all(16.0),
@@ -556,10 +553,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   childCount: contacts.length,
                                 ),
                               ),
-                      ],
-                    ),
-                  );
-                },
+                          // extra space so last contact clears the center + button
+                          SliverToBoxAdapter(
+                            child: SizedBox(height: 32),
+                          ),
+                        ],
+                      );
+                    },
                 loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
                 error: (e, _) => Center(child: Text('Error loading transactions: $e')),
               ),
@@ -567,55 +567,83 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               error: (e, _) => Center(child: Text('Error loading contacts: $e')),
             )
           : ExpenseDashboard(userId: widget.userId),
-      floatingActionButton: _currentTab == 0
-          ? FloatingActionButton.extended(
-              onPressed: _showAddContactSheet,
-              icon: const Icon(Icons.person_add_rounded),
-              label: const Text('Add Contact', style: TextStyle(fontWeight: FontWeight.bold)),
-            )
-          : FloatingActionButton.extended(
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => AddExpenseSheet(userId: widget.userId),
-                );
-              },
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add Expense', style: TextStyle(fontWeight: FontWeight.bold)),
+      floatingActionButton: null,
+      bottomNavigationBar: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppTheme.darkBorder
+                      : AppTheme.lightBorder,
+                  width: 1,
+                ),
+              ),
             ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? AppTheme.darkBorder
-                  : AppTheme.lightBorder,
-              width: 1,
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                navigationBarTheme: const NavigationBarThemeData(
+                  height: 56,
+                ),
+              ),
+              child: NavigationBar(
+                selectedIndex: _currentTab,
+                onDestinationSelected: (idx) => setState(() => _currentTab = idx),
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? AppTheme.darkBg
+                    : AppTheme.lightBg,
+                indicatorColor: AppTheme.primary.withValues(alpha: 0.15),
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.menu_book_rounded),
+                    selectedIcon: Icon(Icons.menu_book_rounded, color: AppTheme.primary),
+                    label: 'Ledger',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.account_balance_wallet_rounded),
+                    selectedIcon: Icon(Icons.account_balance_wallet_rounded, color: AppTheme.primary),
+                    label: 'Expenses',
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        child: NavigationBar(
-          selectedIndex: _currentTab,
-          onDestinationSelected: (idx) => setState(() => _currentTab = idx),
-          backgroundColor: Theme.of(context).brightness == Brightness.dark
-              ? AppTheme.darkBg
-              : AppTheme.lightBg,
-          indicatorColor: AppTheme.primary.withValues(alpha: 0.15),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.menu_book_rounded),
-              selectedIcon: Icon(Icons.menu_book_rounded, color: AppTheme.primary),
-              label: 'Ledger',
+          Positioned(
+            top: -24,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: _currentTab == 0 ? _showAddContactSheet : () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => AddExpenseSheet(userId: widget.userId),
+                  );
+                },
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primary.withValues(alpha: 0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+                ),
+              ),
             ),
-            NavigationDestination(
-              icon: Icon(Icons.account_balance_wallet_rounded),
-              selectedIcon: Icon(Icons.account_balance_wallet_rounded, color: AppTheme.primary),
-              label: 'Expenses',
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

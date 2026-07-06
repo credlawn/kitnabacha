@@ -4,7 +4,9 @@ import 'package:intl/intl.dart';
 
 class AppTheme {
   static String formatAmount(double amount) {
-    return NumberFormat.simpleCurrency(locale: 'en_IN', decimalDigits: 2).format(amount);
+    return NumberFormat.simpleCurrency(locale: 'en_IN', decimalDigits: 2)
+        .format(amount)
+        .replaceFirst('₹', '₹ ');
   }
 
   // Brand Colors (from logo #152450)
