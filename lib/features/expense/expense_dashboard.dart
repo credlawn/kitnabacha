@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
+import '../../core/settings_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/delete_confirm_dialog.dart';
 import 'categories_screen.dart';
@@ -198,6 +199,7 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
               .fold(0.0, (sum, item) => sum + item.amount);
 
           final double totalThisMonth = filteredExpenses.fold(0.0, (sum, item) => sum + item.amount);
+          final decDig = ref.watch(decimalDigitsProvider);
 
           // Group expenses by category
           final Map<String, double> categoryTotals = {};
@@ -283,7 +285,7 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              AppTheme.formatAmount(totalToday),
+                              AppTheme.formatAmount(totalToday, decimalDigits: decDig),
                               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white),
                             ),
                           ],
@@ -315,7 +317,7 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              AppTheme.formatAmount(totalThisMonth),
+                              AppTheme.formatAmount(totalThisMonth, decimalDigits: decDig),
                               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white),
                             ),
                           ],
@@ -456,7 +458,7 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                                                 crossAxisAlignment: CrossAxisAlignment.end,
                                                 children: [
                                                   Text(
-                                                    AppTheme.formatAmount(amount),
+                                                    AppTheme.formatAmount(amount, decimalDigits: decDig),
                                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                                   ),
                                                   const SizedBox(height: 2),
@@ -509,7 +511,7 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                                                       style: const TextStyle(fontSize: 12, color: AppTheme.secondaryText),
                                                     ),
                                                     Text(
-                                                      '${AppTheme.formatAmount(subAmt)} (${subPct.toStringAsFixed(0)}%)',
+                                                      '${AppTheme.formatAmount(subAmt, decimalDigits: decDig)} (${subPct.toStringAsFixed(0)}%)',
                                                       style: TextStyle(
                                                         fontSize: 12,
                                                         color: Theme.of(context).brightness == Brightness.dark
@@ -581,9 +583,6 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                               (context, index) {
                                 final exp = filteredExpenses[index];
                                 final dateStr = DateFormat('dd MMM yyyy').format(exp.date);
-                                final syncIcon = exp.isDirty
-                                    ? const Icon(Icons.access_time_rounded, size: 12, color: AppTheme.warningOrange)
-                                    : const Icon(Icons.done_all_rounded, size: 12, color: AppTheme.primaryLight);
 
                                 // Find category details from database categories list
                                 final matchCat = categories.firstWhere(
@@ -675,7 +674,7 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
                                               Text(
-                                                AppTheme.formatAmount(exp.amount),
+                                                AppTheme.formatAmount(exp.amount, decimalDigits: decDig),
                                                 style: const TextStyle(
                                                   fontSize: 15,
                                                   fontWeight: FontWeight.bold,
@@ -692,8 +691,10 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
                                                       color: AppTheme.secondaryText,
                                                     ),
                                                   ),
-                                                  const SizedBox(width: 4),
-                                                  syncIcon,
+                                                  if (exp.isDirty) ...[
+                                                    const SizedBox(width: 4),
+                                                    const Icon(Icons.access_time_rounded, size: 12, color: AppTheme.warningOrange),
+                                                  ],
                                                 ],
                                               ),
                                             ],

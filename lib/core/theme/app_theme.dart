@@ -3,8 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 class AppTheme {
-  static String formatAmount(double amount) {
-    return NumberFormat.simpleCurrency(locale: 'en_IN', decimalDigits: 2)
+  static String formatAmount(double amount, {int decimalDigits = 2}) {
+    return NumberFormat.simpleCurrency(locale: 'en_IN', decimalDigits: decimalDigits)
         .format(amount)
         .replaceFirst('₹', '₹ ');
   }
@@ -43,6 +43,8 @@ class AppTheme {
   static const Color secondaryText = Color(0xFF65676B);
   static const Color lightTextPrimary = Color(0xFF1C1E21);
   static const Color lightTextSecondary = Color(0xFF65676B);
+  static const Color navUnselected = Color(0xFF9CA3AF);
+  static const Color darkNavUnselected = Color(0xFF6B7280);
   static const LinearGradient premiumCardGradient = LinearGradient(
     begin: Alignment.topLeft, end: Alignment.bottomRight,
     colors: [Color(0xFF1E3A5F), Color(0xFF152450)],

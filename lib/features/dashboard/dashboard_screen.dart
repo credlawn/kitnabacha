@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
+import '../../core/settings_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../ledger/ledger_screen.dart';
 import '../contacts/add_contact_screen.dart';
@@ -23,6 +24,12 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _currentTab = 0;
   bool _showArchived = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentTab = ref.read(defaultTabProvider);
+  }
 
   @override
   void dispose() {
@@ -83,6 +90,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final archivedContactsState = ref.watch(archivedContactsStreamProvider(widget.userId));
     final contactsState = _showArchived ? archivedContactsState : regularContactsState;
     final txnsState = ref.watch(allTransactionsStreamProvider(widget.userId));
+    final decDig = ref.watch(decimalDigitsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -175,7 +183,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                             children: [
                                               Center(
                                                 child: Text(
-                                                  AppTheme.formatAmount(net.abs()),
+                                                  AppTheme.formatAmount(net.abs(), decimalDigits: decDig),
                                                   style: TextStyle(
                                                     fontSize: 20,
                                                     fontWeight: FontWeight.w900,
@@ -252,7 +260,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                                     ),
                                                     const SizedBox(height: 6),
                                                     Text(
-                                                      AppTheme.formatAmount(payable),
+                                                      AppTheme.formatAmount(payable, decimalDigits: decDig),
                                                       style: const TextStyle(
                                                         fontSize: 18,
                                                         fontWeight: FontWeight.w900,
@@ -301,7 +309,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                                     ),
                                                     const SizedBox(height: 6),
                                                     Text(
-                                                      AppTheme.formatAmount(receivable),
+                                                      AppTheme.formatAmount(receivable, decimalDigits: decDig),
                                                       style: const TextStyle(
                                                         fontSize: 18,
                                                         fontWeight: FontWeight.w900,
@@ -457,29 +465,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
             ),
-            child: Theme(
-              data: Theme.of(context).copyWith(
-                navigationBarTheme: const NavigationBarThemeData(
-                  height: 56,
-                ),
-              ),
-              child: NavigationBar(
-                selectedIndex: _currentTab,
-                onDestinationSelected: (idx) => setState(() => _currentTab = idx),
-                backgroundColor: Theme.of(context).brightness == Brightness.dark
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
                     ? AppTheme.darkBg
                     : AppTheme.lightBg,
-                indicatorColor: AppTheme.primary.withValues(alpha: 0.15),
-                destinations: const [
-                  NavigationDestination(
-                    icon: Icon(Icons.menu_book_rounded),
-                    selectedIcon: Icon(Icons.menu_book_rounded, color: AppTheme.primary),
-                    label: 'Ledger',
+                border: Border(
+                  top: BorderSide(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppTheme.darkBorder
+                        : AppTheme.lightBorder,
+                    width: 0.5,
                   ),
-                  NavigationDestination(
-                    icon: Icon(Icons.account_balance_wallet_rounded),
-                    selectedIcon: Icon(Icons.account_balance_wallet_rounded, color: AppTheme.primary),
+                ),
+              ),
+              padding: EdgeInsets.only(top: 6, bottom: MediaQuery.of(context).padding.bottom + 4),
+              child: Row(
+                children: [
+                  _navItem(
+                    context: context,
+                    icon: Icons.menu_book_rounded,
+                    label: 'Ledger',
+                    selected: _currentTab == 0,
+                    onTap: () => setState(() => _currentTab = 0),
+                  ),
+                  _navItem(
+                    context: context,
+                    icon: Icons.account_balance_wallet_rounded,
                     label: 'Expenses',
+                    selected: _currentTab == 1,
+                    onTap: () => setState(() => _currentTab = 1),
                   ),
                 ],
               ),
@@ -530,6 +545,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     required int total,
   }) {
     final cTxns = txns.where((t) => t.contactId == contact.id).toList();
+    final cDecDig = ref.read(decimalDigitsProvider);
     double cBalance = 0;
     for (final txn in cTxns) {
       if (txn.type == 'give' || txn.type == 'pay') {
@@ -613,7 +629,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Text(
                       cBalance == 0
                           ? 'Settled'
-                          : AppTheme.formatAmount(cBalance.abs()),
+                          : AppTheme.formatAmount(cBalance.abs(), decimalDigits: cDecDig),
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -659,6 +675,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 : AppTheme.lightBorder,
           ),
       ],
+    );
+  }
+
+  Widget _navItem({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = selected ? AppTheme.primary : (isDark ? AppTheme.darkNavUnselected : AppTheme.navUnselected);
+    final textColor = selected ? AppTheme.primary : (isDark ? AppTheme.darkNavUnselected : AppTheme.navUnselected);
+
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: iconColor),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: textColor,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

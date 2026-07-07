@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
+import '../../core/settings_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../ledger/ledger_screen.dart';
 
@@ -185,6 +186,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final label = isGive ? 'Gave' : isTake ? 'Took' : isReceive ? 'Returned' : 'Repaid';
     final labelColor = isPositive ? AppTheme.creditGreen : AppTheme.debitRed;
     final labelBg = isPositive ? AppTheme.creditGreenBg : AppTheme.debitRedBg;
+    final sDecDig = ref.read(decimalDigitsProvider);
 
     final initial = contact != null && contact.name.trim().isNotEmpty
         ? contact.name.trim().substring(0, 1).toUpperCase()
@@ -275,7 +277,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    AppTheme.formatAmount(txn.amount),
+                    AppTheme.formatAmount(txn.amount, decimalDigits: sDecDig),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocketbase/pocketbase.dart';
 import '../../core/providers.dart';
+import '../../core/settings_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/delete_confirm_dialog.dart';
-import '../../core/widgets/app_toggle.dart';
 import '../auth/auth_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -15,6 +15,7 @@ class SettingsScreen extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
     final record = authState.value;
     final isGuest = record == null;
+    final settings = ref.watch(settingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final displayName = record == null
@@ -31,17 +32,25 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           _buildProfileCard(context, record: record, displayName: displayName, isDark: isDark),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+          _buildSectionHeader(context, 'APPEARANCE'),
+          const SizedBox(height: 8),
+          _buildSettingTile(
+            context,
+            icon: Icons.numbers_rounded,
+            title: 'Decimal Format',
+            subtitle: _decimalLabel(settings.decimalFormat),
+            onTap: () => _showDecimalSheet(context, ref),
+          ),
+          const SizedBox(height: 20),
           _buildSectionHeader(context, 'PREFERENCES'),
           const SizedBox(height: 8),
           _buildSettingTile(
             context,
-            icon: Icons.dark_mode_rounded,
-            title: 'Dark Mode',
-            trailing: AppToggle(
-              value: isDark,
-              onChanged: (_) {},
-            ),
+            icon: Icons.dashboard_rounded,
+            title: 'Default Page',
+            subtitle: settings.defaultPage == DefaultPage.ledger ? 'Ledger' : 'Expense',
+            onTap: () => _showDefaultPageSheet(context, ref),
           ),
           const Divider(height: 1),
           _buildSettingTile(
@@ -50,7 +59,7 @@ class SettingsScreen extends ConsumerWidget {
             title: 'Currency',
             subtitle: 'Indian Rupee (₹)',
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           _buildSectionHeader(context, 'DATA'),
           const SizedBox(height: 8),
           _buildSettingTile(
@@ -79,7 +88,7 @@ class SettingsScreen extends ConsumerWidget {
               }
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           _buildSectionHeader(context, 'ABOUT'),
           const SizedBox(height: 8),
           _buildSettingTile(
@@ -105,23 +114,168 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  String _decimalLabel(DecimalFormat fmt) {
+    switch (fmt) {
+      case DecimalFormat.none:
+        return 'No Decimal (e.g. 100)';
+      case DecimalFormat.one:
+        return '1 Decimal Place (e.g. 100.5)';
+      case DecimalFormat.two:
+        return '2 Decimal Places (e.g. 100.50)';
+    }
+  }
+
+  void _showDecimalSheet(BuildContext context, WidgetRef ref) {
+    final current = ref.read(settingsProvider).decimalFormat;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Decimal Format',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _optionTile(ctx, 'No Decimal (e.g. 100)', DecimalFormat.none, current, Icons.looks_one_rounded, ref),
+              _optionTile(ctx, '1 Decimal Place (e.g. 100.5)', DecimalFormat.one, current, Icons.looks_two_rounded, ref),
+              _optionTile(ctx, '2 Decimal Places (e.g. 100.50)', DecimalFormat.two, current, Icons.looks_3_rounded, ref),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDefaultPageSheet(BuildContext context, WidgetRef ref) {
+    final current = ref.read(settingsProvider).defaultPage;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Default Page',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _optionTile(ctx, 'Ledger', DefaultPage.ledger, current, Icons.menu_book_rounded, ref),
+              _optionTile(ctx, 'Expense', DefaultPage.expense, current, Icons.account_balance_wallet_rounded, ref),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _optionTile(BuildContext context, String label, dynamic value, dynamic current, IconData icon, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSelected = value == current;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: InkWell(
+        onTap: () {
+          if (value is DecimalFormat) ref.read(settingsProvider.notifier).setDecimalFormat(value);
+          if (value is DefaultPage) ref.read(settingsProvider.notifier).setDefaultPage(value);
+          Navigator.pop(context);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppTheme.primary.withValues(alpha: 0.1)
+                : (isDark ? AppTheme.darkCard : Colors.grey.shade50),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: isSelected ? AppTheme.primary : AppTheme.secondaryText),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? AppTheme.primary
+                        : (isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary),
+                  ),
+                ),
+              ),
+              if (isSelected)
+                const Icon(Icons.check_rounded, size: 20, color: AppTheme.primary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildProfileCard(BuildContext context, {required RecordModel? record, required String displayName, required bool isDark}) {
     final isGuest = record == null;
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       decoration: AppTheme.glassmorphicBox(context: context),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 28,
+            radius: 24,
             backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
             child: Icon(
               Icons.person_rounded,
               color: AppTheme.primaryLight,
-              size: 28,
+              size: 24,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,24 +283,24 @@ class SettingsScreen extends ConsumerWidget {
                 Text(
                   displayName,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Row(
                   children: [
                     Icon(
                       isGuest ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
-                      size: 14,
+                      size: 13,
                       color: isGuest ? AppTheme.warningOrange : AppTheme.creditGreen,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 5),
                     Text(
                       isGuest ? 'No Backup' : 'Data is Safe',
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isGuest ? FontWeight.w600 : FontWeight.w600,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                         color: isGuest ? AppTheme.warningOrange : AppTheme.creditGreen,
                       ),
                     ),
@@ -163,7 +317,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppTheme.primary,
                   borderRadius: BorderRadius.circular(8),
@@ -172,7 +326,7 @@ class SettingsScreen extends ConsumerWidget {
                   'Backup Now',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

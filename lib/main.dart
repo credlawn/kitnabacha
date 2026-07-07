@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/providers.dart';
+import 'core/settings_provider.dart';
 import 'core/pocketbase/pocketbase_client.dart';
 import 'core/theme/app_theme.dart';
 import 'features/dashboard/dashboard_screen.dart';
@@ -16,6 +18,8 @@ void main() async {
     appRunner: () async {
       WidgetsFlutterBinding.ensureInitialized();
       await PocketBaseService.init();
+      final prefs = await SharedPreferences.getInstance();
+      cachePrefs(prefs);
 
       runApp(
         const ProviderScope(

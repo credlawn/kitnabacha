@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
+import '../../core/settings_provider.dart';
 import '../../core/theme/app_theme.dart';
 
 class ExpenseSearchScreen extends ConsumerStatefulWidget {
@@ -47,6 +48,7 @@ class _ExpenseSearchScreenState extends ConsumerState<ExpenseSearchScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final expensesAsync = ref.watch(expensesStreamProvider(userId));
     final categoriesAsync = ref.watch(expenseCategoriesStreamProvider(userId));
+    final decDig = ref.watch(decimalDigitsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -172,7 +174,7 @@ class _ExpenseSearchScreenState extends ConsumerState<ExpenseSearchScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    AppTheme.formatAmount(expense.amount),
+                                    AppTheme.formatAmount(expense.amount, decimalDigits: decDig),
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,

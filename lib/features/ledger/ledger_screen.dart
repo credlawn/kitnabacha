@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
+import '../../core/settings_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/delete_confirm_dialog.dart';
 import '../contacts/add_contact_screen.dart';
@@ -194,7 +195,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
       return;
     }
 
-    final String formattedAmt = AppTheme.formatAmount(balance.abs());
+    final String formattedAmt = AppTheme.formatAmount(balance.abs(), decimalDigits: ref.read(decimalDigitsProvider));
     String reminderText;
 
     if (balance > 0) {
@@ -389,6 +390,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     final txnsState = ref.watch(transactionsStreamProvider(widget.contact.id));
     final contactState = ref.watch(contactByIdProvider(widget.contact.id));
     final contact = contactState.asData?.value ?? widget.contact;
+    final decDig = ref.watch(decimalDigitsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -663,7 +665,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              AppTheme.formatAmount(displayBalance.abs()),
+                              AppTheme.formatAmount(displayBalance.abs(), decimalDigits: decDig),
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
@@ -860,7 +862,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                                                 Icon(typeIcon, size: 18, color: typeColor),
                                                 const SizedBox(width: 10),
                                                 Text(
-                                                  AppTheme.formatAmount(txn.amount),
+                                                  AppTheme.formatAmount(txn.amount, decimalDigits: decDig),
                                                   style: TextStyle(
                                                     fontSize: 15,
                                                     fontWeight: FontWeight.w700,
