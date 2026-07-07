@@ -492,11 +492,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Center(
               child: GestureDetector(
                 onTap: _currentTab == 0 ? _openAddContactScreen : () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => AddExpenseSheet(userId: widget.userId),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AddExpenseSheet(userId: widget.userId),
+                    ),
                   );
                 },
                 child: Container(

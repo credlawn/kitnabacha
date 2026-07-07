@@ -145,13 +145,13 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
   }
 
   void _openAddExpenseSheet(BuildContext context, {Expense? exp}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => AddExpenseSheet(
-        userId: widget.userId,
-        editExpense: exp,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddExpenseSheet(
+          userId: widget.userId,
+          editExpense: exp,
+        ),
       ),
     );
   }

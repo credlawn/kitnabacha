@@ -50,15 +50,6 @@ class SettingsScreen extends ConsumerWidget {
             title: 'Currency',
             subtitle: 'Indian Rupee (₹)',
           ),
-          if (!isGuest) ...[
-            const Divider(height: 1),
-            _buildSettingTile(
-              context,
-              icon: Icons.sync_rounded,
-              title: 'Sync Now',
-              onTap: () => ref.read(syncEngineProvider).triggerSync(),
-            ),
-          ],
           const SizedBox(height: 24),
           _buildSectionHeader(context, 'DATA'),
           const SizedBox(height: 8),

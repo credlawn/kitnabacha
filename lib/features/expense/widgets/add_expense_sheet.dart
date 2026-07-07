@@ -7,10 +7,11 @@ import 'package:drift/drift.dart' hide Column, Table;
 import '../../../core/database/local_db.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/delete_confirm_dialog.dart';
 
 class AddExpenseSheet extends ConsumerStatefulWidget {
   final String userId;
-  final Expense? editExpense; // Optional expense to edit
+  final Expense? editExpense;
 
   const AddExpenseSheet({
     super.key,
@@ -26,7 +27,7 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _remarksController = TextEditingController();
-  
+
   DateTime _selectedDate = DateTime.now();
   List<ExpenseCategory> _categories = [];
   ExpenseCategory? _selectedCategory;
@@ -63,6 +64,8 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
     super.dispose();
   }
 
+  bool get _isEdit => widget.editExpense != null;
+
   IconData _getIconFromString(String iconName) {
     return _availableIcons[iconName] ?? Icons.category_rounded;
   }
@@ -83,20 +86,13 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
 
     if (_categories.isNotEmpty) {
       _selectedCategory = _categories.first;
-      
-      List<String> subs = [];
-      try {
-        final List<dynamic> parsed = jsonDecode(_selectedCategory!.subCategories);
-        subs = parsed.map((e) => e.toString()).toList();
-      } catch (_) {}
-
+      final subs = _getSubs(_selectedCategory!);
       if (subs.isNotEmpty) {
         _selectedSubCategory = subs.first;
       }
     }
 
-    // Populate for editing if editExpense is provided
-    if (widget.editExpense != null) {
+    if (_isEdit) {
       final exp = widget.editExpense!;
       _amountController.text = exp.amount.toString();
       _selectedDate = exp.date;
@@ -107,13 +103,8 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
         orElse: () => _categories.first,
       );
       _selectedCategory = matchCat;
-      
-      List<String> subs = [];
-      try {
-        final List<dynamic> parsed = jsonDecode(matchCat.subCategories);
-        subs = parsed.map((e) => e.toString()).toList();
-      } catch (_) {}
 
+      final subs = _getSubs(matchCat);
       if (subs.contains(exp.subCategory)) {
         _selectedSubCategory = exp.subCategory;
       } else if (subs.isNotEmpty) {
@@ -123,13 +114,20 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
       }
     }
 
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+  List<String> _getSubs(ExpenseCategory cat) {
+    try {
+      final List<dynamic> parsed = jsonDecode(cat.subCategories);
+      return parsed.map((e) => e.toString()).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
@@ -150,9 +148,7 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
       },
     );
     if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+      setState(() => _selectedDate = picked);
     }
   }
 
@@ -167,17 +163,16 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
     }
 
     final db = ref.read(dbProvider);
-    final isEdit = widget.editExpense != null;
 
     final exp = Expense(
-      id: isEdit ? widget.editExpense!.id : const Uuid().v4(),
+      id: _isEdit ? widget.editExpense!.id : const Uuid().v4(),
       userId: widget.userId,
       categoryId: _selectedCategory!.id,
       subCategory: _selectedSubCategory ?? 'General',
       amount: amount,
       remarks: _remarksController.text.trim().isEmpty ? null : _remarksController.text.trim(),
       date: _selectedDate,
-      createdAt: isEdit ? widget.editExpense!.createdAt : DateTime.now(),
+      createdAt: _isEdit ? widget.editExpense!.createdAt : DateTime.now(),
       updatedAt: DateTime.now(),
       isDirty: widget.userId != 'guest',
       isDeleted: false,
@@ -186,292 +181,318 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
     await db.upsertExpense(exp);
     ref.read(syncEngineProvider).triggerSync();
 
-    if (mounted) {
-      Navigator.pop(context, true);
+    if (mounted) Navigator.pop(context, true);
+  }
+
+  void _deleteExpense() async {
+    final confirmed = await DeleteConfirmDialog.show(
+      context: context,
+      title: 'Delete Expense?',
+      message: 'Are you sure you want to delete this expense of ${AppTheme.formatAmount(widget.editExpense!.amount)}?',
+    );
+    if (confirmed == true) {
+      final db = ref.read(dbProvider);
+      await db.softDeleteExpense(widget.editExpense!.id);
+      ref.read(syncEngineProvider).triggerSync();
+      if (mounted) Navigator.pop(context, true);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (_isLoading) {
-      return Container(
-        height: 300,
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: const Center(
-          child: CircularProgressIndicator(color: AppTheme.primary),
-        ),
+      return Scaffold(
+        backgroundColor: isDark ? AppTheme.darkBg : AppTheme.lightBg,
+        appBar: AppBar(title: const Text('Expense', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17))),
+        body: const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
       );
     }
 
     if (_categories.isEmpty) {
-      return Container(
-        height: 250,
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      return Scaffold(
+        backgroundColor: isDark ? AppTheme.darkBg : AppTheme.lightBg,
+        appBar: AppBar(
+          title: const Text('Expense', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
         ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'No Categories Configured',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.category_outlined, size: 48, color: AppTheme.secondaryText),
+                const SizedBox(height: 16),
+                const Text(
+                  'No Categories Found',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Add categories from the expense dashboard first.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppTheme.secondaryText),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Go Back'),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            const Text(
-              'Please add categories from the management screen first.',
-              style: TextStyle(color: AppTheme.secondaryText),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Go Back'),
-            ),
-          ],
+          ),
         ),
       );
     }
 
-    final isEdit = widget.editExpense != null;
-    
-    List<String> currentSubCategories = [];
-    if (_selectedCategory != null) {
-      try {
-        final List<dynamic> parsed = jsonDecode(_selectedCategory!.subCategories);
-        currentSubCategories = parsed.map((e) => e.toString()).toList();
-      } catch (_) {}
-    }
+    final currentSubs = _getSubs(_selectedCategory!);
 
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? AppTheme.darkBorder
-                  : AppTheme.lightBorder,
-              width: 1,
+    return Scaffold(
+      backgroundColor: isDark ? AppTheme.darkBg : AppTheme.lightBg,
+      appBar: AppBar(
+        title: Text(
+          _isEdit ? 'Edit Expense' : 'New Expense',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+        ),
+        centerTitle: false,
+        actions: [
+          if (_isEdit)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: IconButton(
+                onPressed: _deleteExpense,
+                icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.debitRed),
+                style: IconButton.styleFrom(
+                  backgroundColor: AppTheme.debitRed.withValues(alpha: 0.1),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: IconButton(
+              onPressed: _saveExpense,
+              icon: Icon(Icons.save_outlined, color: AppTheme.primary),
+              style: IconButton.styleFrom(
+                backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
             ),
           ),
-        ),
-        padding: const EdgeInsets.all(24),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Form(
           key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      isEdit ? 'Edit Expense' : 'Add Expense',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Amount
+              Text(
+                'Amount',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                 ),
-                const SizedBox(height: 20),
-
-                // Amount Input Field
-                TextFormField(
-                  controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  autofocus: !isEdit,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  decoration: const InputDecoration(
-                    labelText: 'Amount (₹)',
-                    prefixIcon: Icon(Icons.currency_rupee_rounded, size: 22),
-                    hintText: '0.00',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter amount';
-                    }
-                    if (double.tryParse(value) == null) {
-                      return 'Please enter a valid number';
-                    }
-                    return null;
-                  },
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _amountController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                autofocus: !_isEdit,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
                 ),
-                const SizedBox(height: 16),
-
-                // Category Selector Dropdown
-                DropdownButtonFormField<ExpenseCategory>(
-                  initialValue: _selectedCategory,
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    prefixIcon: Icon(Icons.category_rounded),
+                textAlign: TextAlign.center,
+                decoration: InputDecoration(
+                  hintText: '₹ 0.00',
+                  hintStyle: TextStyle(color: AppTheme.secondaryText.withValues(alpha: 0.4)),
+                  filled: true,
+                  fillColor: isDark ? AppTheme.darkCard : AppTheme.lightBorder.withValues(alpha: 0.3),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
                   ),
-                  items: _categories.map((cat) {
-                    final catColor = _getColorFromHex(cat.color);
-                    final iconName = cat.icon;
-                    return DropdownMenuItem<ExpenseCategory>(
-                      value: cat,
-                      child: Row(
-                        children: [
-                          Icon(_getIconFromString(iconName), color: catColor, size: 20),
-                          const SizedBox(width: 12),
-                          Text(cat.name),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (cat) {
-                    setState(() {
-                      _selectedCategory = cat;
-                      
-                      List<String> subs = [];
-                      if (cat != null) {
-                        try {
-                          final List<dynamic> parsed = jsonDecode(cat.subCategories);
-                          subs = parsed.map((e) => e.toString()).toList();
-                        } catch (_) {}
-                      }
-
-                      if (subs.isNotEmpty) {
-                        _selectedSubCategory = subs.first;
-                      } else {
-                        _selectedSubCategory = null;
-                      }
-                    });
-                  },
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: AppTheme.primary, width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 20),
                 ),
-                const SizedBox(height: 16),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return 'Please enter amount';
+                  if (double.tryParse(value) == null) return 'Please enter a valid number';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
 
-                // Sub-category Selector Dropdown
-                if (currentSubCategories.isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    initialValue: currentSubCategories.contains(_selectedSubCategory) ? _selectedSubCategory : null,
-                    decoration: const InputDecoration(
-                      labelText: 'Sub-category',
-                      prefixIcon: Icon(Icons.subdirectory_arrow_right_rounded),
-                    ),
-                    items: currentSubCategories.map((sub) {
-                      return DropdownMenuItem<String>(
-                        value: sub,
-                        child: Text(sub),
-                      );
-                    }).toList(),
-                    onChanged: (sub) {
-                      setState(() {
-                        _selectedSubCategory = sub;
-                      });
-                    },
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white.withValues(alpha: 0.03)
-                          : Colors.black.withValues(alpha: 0.03),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? AppTheme.darkBorder
-                            : AppTheme.lightBorder,
-                      ),
-                    ),
-                      child: Row(
-                      children: [
-                        Icon(Icons.info_outline_rounded, size: 18, color: AppTheme.secondaryText),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'No sub-categories available. Add sub-categories in Manage Categories to select here.',
-                            style: TextStyle(color: AppTheme.secondaryText, fontSize: 11),
-                          ),
-                        ),
-                      ],
-                    ),
+              // Category
+              Text(
+                'Category',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<ExpenseCategory>(
+                initialValue: _selectedCategory,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: isDark ? AppTheme.darkCard : AppTheme.lightBorder.withValues(alpha: 0.3),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
                   ),
-                const SizedBox(height: 16),
-
-                // Date and Remarks row/fields
-                InkWell(
-                  onTap: () => _selectDate(context),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).inputDecorationTheme.fillColor,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? AppTheme.darkBorder
-                            : AppTheme.lightBorder,
-                      ),
-                    ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+                items: _categories.map((cat) {
+                  final catColor = _getColorFromHex(cat.color);
+                  return DropdownMenuItem<ExpenseCategory>(
+                    value: cat,
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_today_rounded, size: 20, color: AppTheme.secondaryText),
+                        Icon(_getIconFromString(cat.icon), color: catColor, size: 20),
                         const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Date',
-                                style: TextStyle(fontSize: 11, color: AppTheme.secondaryText),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                DateFormat('dd MMM yyyy (EEEE)').format(_selectedDate),
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.arrow_drop_down, color: AppTheme.secondaryText),
+                        Text(cat.name, style: TextStyle(color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary)),
                       ],
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                  );
+                }).toList(),
+                onChanged: (cat) {
+                  setState(() {
+                    _selectedCategory = cat;
+                    final subs = cat != null ? _getSubs(cat) : [];
+                    _selectedSubCategory = subs.isNotEmpty ? subs.first : null;
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
 
-                TextFormField(
-                  controller: _remarksController,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Remarks / Notes',
-                    prefixIcon: Icon(Icons.notes_rounded),
-                    hintText: 'e.g. Chai for office guests',
-                  ),
+              // Sub-category
+              if (currentSubs.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Sub-category',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      initialValue: currentSubs.contains(_selectedSubCategory) ? _selectedSubCategory : null,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: isDark ? AppTheme.darkCard : AppTheme.lightBorder.withValues(alpha: 0.3),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                      items: currentSubs.map((sub) {
+                        return DropdownMenuItem<String>(
+                          value: sub,
+                          child: Text(sub, style: TextStyle(color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary)),
+                        );
+                      }).toList(),
+                      onChanged: (sub) => setState(() => _selectedSubCategory = sub),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                 ),
-                const SizedBox(height: 32),
 
-                ElevatedButton(
-                  onPressed: _saveExpense,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              // Date
+              Text(
+                'Date',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: _selectDate,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.darkCard : AppTheme.lightBorder.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Text(
-                    isEdit ? 'Update Expense' : 'Save Expense',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today_rounded, size: 20, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          DateFormat('dd MMM yyyy').format(_selectedDate),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, size: 20, color: AppTheme.secondaryText),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 20),
+
+              // Remarks
+              Text(
+                'Remarks',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _remarksController,
+                textCapitalization: TextCapitalization.sentences,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Optional',
+                  hintStyle: TextStyle(color: AppTheme.secondaryText.withValues(alpha: 0.4)),
+                  prefixIcon: Icon(Icons.notes_rounded, size: 20),
+                  filled: true,
+                  fillColor: isDark ? AppTheme.darkCard : AppTheme.lightBorder.withValues(alpha: 0.3),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: AppTheme.primary, width: 1),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+              ),
+            ],
           ),
         ),
       ),
