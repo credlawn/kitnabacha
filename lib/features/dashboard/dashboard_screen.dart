@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/contact_picker.dart';
 import '../ledger/ledger_screen.dart';
 import '../expense/expense_dashboard.dart';
 import '../expense/widgets/add_expense_sheet.dart';
@@ -146,7 +147,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       prefixIcon: Icon(Icons.phone_outlined),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final contact = await ContactPicker.pickContact();
+                      if (contact != null) {
+                        if (contact.name.isNotEmpty) {
+                          nameController.text = contact.name;
+                        }
+                        if (contact.phone.isNotEmpty) {
+                          phoneController.text = contact.phone;
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.contacts_outlined, size: 18),
+                    label: const Text('From Contacts'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: BorderSide(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppTheme.darkBorder
+                            : AppTheme.lightBorder,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () async {
                       if (!formKey.currentState!.validate()) return;
