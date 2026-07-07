@@ -204,6 +204,11 @@ final archivedContactsStreamProvider = StreamProvider.family<List<Contact>, Stri
   return db.watchArchivedContacts(userId);
 });
 
+final contactByIdProvider = StreamProvider.family<Contact?, String>((ref, id) {
+  final db = ref.watch(dbProvider);
+  return db.watchContactById(id);
+});
+
 final transactionsStreamProvider = StreamProvider.family<List<TransactionModel>, String>((ref, contactId) {
   final db = ref.watch(dbProvider);
   return db.watchTransactionsForContact(contactId);

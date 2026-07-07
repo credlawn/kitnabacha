@@ -6,6 +6,7 @@ import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/delete_confirm_dialog.dart';
+import '../contacts/add_contact_screen.dart';
 import 'widgets/add_transaction_sheet.dart';
 
 class LedgerScreen extends ConsumerStatefulWidget {
@@ -148,6 +149,18 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
         Navigator.pop(context);
       }
     }
+  }
+
+  void _editContact(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddContactScreen(
+          userId: widget.userId,
+          contactToEdit: widget.contact,
+        ),
+      ),
+    );
   }
 
   Future<bool?> _confirmDeleteTransactionDialog(BuildContext context, TransactionModel txn) {
@@ -374,6 +387,8 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
   @override
   Widget build(BuildContext context) {
     final txnsState = ref.watch(transactionsStreamProvider(widget.contact.id));
+    final contactState = ref.watch(contactByIdProvider(widget.contact.id));
+    final contact = contactState.asData?.value ?? widget.contact;
 
     return Scaffold(
       appBar: AppBar(
@@ -381,7 +396,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.contact.name,
+              contact.name,
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
@@ -390,9 +405,9 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                     : AppTheme.textPrimary,
               ),
             ),
-            if (widget.contact.phone != null)
+            if (contact.phone != null)
               Text(
-                widget.contact.phone!,
+                contact.phone!,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -481,6 +496,8 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                     _confirmDeleteAllTransactions(context);
                   } else if (value == 'delete_all_txns_and_contact') {
                     _confirmDeleteAllTransactionsAndContact(context);
+                  } else if (value == 'edit') {
+                    _editContact(context);
                   } else if (value == 'archive') {
                     _confirmArchiveContact(context, balance);
                   } else if (value == 'unarchive') {
@@ -521,6 +538,16 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                         ],
                       ),
                     ),
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_outlined, size: 18, color: AppTheme.primary),
+                        const SizedBox(width: 10),
+                        const Text('Edit Contact'),
+                      ],
+                    ),
+                  ),
                   const PopupMenuDivider(),
                   if (hasTxns && !widget.contact.isArchived)
                     PopupMenuItem(

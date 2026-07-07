@@ -116,6 +116,19 @@ class AppDatabase extends _$AppDatabase {
     return (select(contacts)..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
+  Stream<Contact?> watchContactById(String id) {
+    return (select(contacts)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  }
+
+  Future<Contact?> getContactByPhone(String userId, String phone) async {
+    final trimmed = phone.trim();
+    if (trimmed.isEmpty) return null;
+    final rows = await (select(contacts)
+          ..where((t) => t.userId.equals(userId) & t.phone.equals(trimmed) & t.isDeleted.equals(false)))
+        .get();
+    return rows.isEmpty ? null : rows.first;
+  }
+
   Future<int> getActiveTransactionsForContact(String contactId) async {
     final rows = await (select(transactions)
           ..where((t) => t.contactId.equals(contactId) & t.isDeleted.equals(false)))

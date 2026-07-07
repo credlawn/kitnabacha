@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/contact_picker.dart';
 import '../ledger/ledger_screen.dart';
+import '../contacts/add_contact_screen.dart';
 import '../expense/expense_dashboard.dart';
 import '../expense/widgets/add_expense_sheet.dart';
 import '../search/search_screen.dart';
@@ -69,160 +68,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     };
   }
 
-  // Show Bottom Sheet to Add a New Contact locally-first
-  void _showAddContactSheet() {
-    final nameController = TextEditingController();
-    final phoneController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              border: Border(
-                top: BorderSide(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppTheme.darkBorder
-                      : AppTheme.lightBorder,
-                  width: 1,
-                ),
-              ),
-            ),
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Add New Contact',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: nameController,
-                    autofocus: true,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Full Name',
-                      hintText: 'Enter name (e.g. Ramesh Kumar)',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter a name';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone Number (Optional)',
-                      hintText: 'Enter mobile number',
-                      prefixIcon: Icon(Icons.phone_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final contact = await ContactPicker.pickContact();
-                      if (contact != null) {
-                        if (contact.name.isNotEmpty) {
-                          nameController.text = contact.name;
-                        }
-                        if (contact.phone.isNotEmpty) {
-                          phoneController.text = contact.phone;
-                        }
-                      }
-                    },
-                    icon: const Icon(Icons.contacts_outlined, size: 18),
-                    label: const Text('From Contacts'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      side: BorderSide(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? AppTheme.darkBorder
-                            : AppTheme.lightBorder,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (!formKey.currentState!.validate()) return;
-
-                      final db = ref.read(dbProvider);
-                      final contact = Contact(
-                        id: const Uuid().v4(),
-                        userId: widget.userId,
-                        name: nameController.text.trim(),
-                        phone: phoneController.text.trim().isEmpty
-                            ? null
-                            : phoneController.text.trim(),
-                        createdAt: DateTime.now(),
-                        updatedAt: DateTime.now(),
-                        isDirty: true,
-                        isDeleted: false,
-                        isArchived: false,
-                      );
-
-                      // Save in Drift immediately (reactive UI updates automatically)
-                      await db.upsertContact(contact);
-
-                      // Trigger async sync in the background
-                      ref.read(syncEngineProvider).triggerSync();
-
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Save Contact',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+  void _openAddContactScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddContactScreen(userId: widget.userId),
+      ),
     );
   }
 
@@ -640,7 +491,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             right: 0,
             child: Center(
               child: GestureDetector(
-                onTap: _currentTab == 0 ? _showAddContactSheet : () {
+                onTap: _currentTab == 0 ? _openAddContactScreen : () {
                   showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
