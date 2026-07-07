@@ -599,102 +599,199 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
 
           final displayBalance = _calculateContactBalance(filteredTxns);
 
+          final totalPaid = filteredTxns
+              .where((t) => t.type == 'give' || t.type == 'pay')
+              .fold<double>(0, (sum, t) => sum + t.amount);
+          final totalReceived = filteredTxns
+              .where((t) => t.type == 'take' || t.type == 'receive')
+              .fold<double>(0, (sum, t) => sum + t.amount);
+
           return Column(
             children: [
-              // Balance header
+              // Summary card
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppTheme.darkCard
-                      : Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? AppTheme.darkBorder
-                        : AppTheme.lightBorder,
-                  ),
+                decoration: AppTheme.cardDecoration(
+                  isDark: Theme.of(context).brightness == Brightness.dark,
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: displayBalance > 0
-                              ? AppTheme.creditGreen.withValues(alpha: 0.12)
-                              : displayBalance < 0
-                                  ? AppTheme.debitRed.withValues(alpha: 0.12)
-                                  : AppTheme.secondaryText.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    // Top: Balance row (1 line)
+                    Stack(
+                      children: [
+                        Center(
+                          child: Text(
+                            AppTheme.formatAmount(displayBalance.abs(), decimalDigits: decDig),
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: displayBalance > 0
+                                  ? AppTheme.creditGreen
+                                  : displayBalance < 0
+                                      ? AppTheme.debitRed
+                                      : Theme.of(context).brightness == Brightness.dark
+                                          ? AppTheme.darkTextSecondary
+                                          : AppTheme.lightTextSecondary,
+                            ),
+                          ),
                         ),
-                        child: Icon(
-                          displayBalance > 0
-                              ? Icons.arrow_downward_rounded
-                              : displayBalance < 0
-                                  ? Icons.arrow_upward_rounded
-                                  : Icons.check_circle_outline_rounded,
-                          color: displayBalance > 0
-                              ? AppTheme.creditGreen
-                              : displayBalance < 0
-                                  ? AppTheme.debitRed
-                                  : AppTheme.secondaryText,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
+                        Positioned(
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          child: Center(
+                            child: Text(
                               displayBalance > 0
                                   ? 'To Receive'
                                   : displayBalance < 0
                                       ? 'To Pay'
                                       : 'Settled',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? AppTheme.darkTextSecondary
-                                    : AppTheme.lightTextSecondary,
+                                color: (Theme.of(context).brightness == Brightness.dark
+                                        ? AppTheme.darkTextSecondary
+                                        : AppTheme.textSecondary)
+                                    .withValues(alpha: 0.7),
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              AppTheme.formatAmount(displayBalance.abs(), decimalDigits: decDig),
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                color: displayBalance > 0
-                                    ? AppTheme.creditGreen
-                                    : displayBalance < 0
-                                        ? AppTheme.debitRed
-                                        : Theme.of(context).brightness == Brightness.dark
-                                            ? AppTheme.darkTextSecondary
-                                            : AppTheme.lightTextSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (displayBalance != 0)
-                        IconButton(
-                          onPressed: () => _copyPaymentReminder(context, lifetimeBalance),
-                          icon: Icon(
-                            Icons.content_copy_rounded,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? AppTheme.darkTextSecondary
-                                : AppTheme.lightTextSecondary,
-                            size: 20,
                           ),
-                          tooltip: 'Copy Reminder',
                         ),
-                    ],
-                  ),
+                        if (displayBalance != 0)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            bottom: 0,
+                            child: Center(
+                              child: IconButton(
+                                onPressed: () => _copyPaymentReminder(context, lifetimeBalance),
+                                icon: Icon(
+                                  Icons.content_copy_rounded,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? AppTheme.darkTextSecondary
+                                      : AppTheme.lightTextSecondary,
+                                  size: 18,
+                                ),
+                                tooltip: 'Copy Reminder',
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                padding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Divider(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppTheme.darkBorder
+                          : AppTheme.lightBorder,
+                      height: 1,
+                    ),
+                    const SizedBox(height: 8),
+                    // Bottom: Paid / Received boxes
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.debitRed.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: AppTheme.debitRed.withValues(alpha: 0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                        color: AppTheme.debitRed,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Total Paid',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.debitRed.withValues(alpha: 0.8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  AppTheme.formatAmount(totalPaid, decimalDigits: decDig),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppTheme.debitRed,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.creditGreen.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: AppTheme.creditGreen.withValues(alpha: 0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                        color: AppTheme.creditGreen,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Total Received',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.creditGreen.withValues(alpha: 0.8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  AppTheme.formatAmount(totalReceived, decimalDigits: decDig),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppTheme.creditGreen,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
 
@@ -752,44 +849,8 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                       )
                     : ListView(
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
-                        children: () {
-                          final Map<String, List<TransactionModel>> groups = {};
-                          for (final txn in filteredTxns) {
-                            final key = DateFormat('yyyy-MM-dd').format(txn.date);
-                            groups.putIfAbsent(key, () => []);
-                            groups[key]!.add(txn);
-                          }
-                          final dateKeys = groups.keys.toList();
-
-                          String dateLabel(String key) {
-                            final date = DateTime.parse(key);
-                            final now = DateTime.now();
-                            final today = DateTime(now.year, now.month, now.day);
-                            final diff = today.difference(date).inDays;
-                            if (diff == 0) return 'Today';
-                            if (diff == 1) return 'Yesterday';
-                            return DateFormat('dd MMM yyyy').format(date);
-                          }
-
-                          return [
-                            for (int g = 0; g < dateKeys.length; g++) ...[
-                              if (g > 0)
-                                const SizedBox(height: 8),
-                              Padding(
-                                padding: const EdgeInsets.only(left: 4, top: 8, bottom: 6),
-                                  child: Text(
-                                    dateLabel(dateKeys[g]),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Theme.of(context).brightness == Brightness.dark
-                                        ? AppTheme.darkTextSecondary
-                                        : AppTheme.lightTextSecondary,
-                                  ),
-                                ),
-                              ),
-                              ...groups[dateKeys[g]]!.map((txn) {
-                                final dateStr = DateFormat('dd MMM yyyy').format(txn.date);
+                        children: filteredTxns.map((txn) {
+                          final dateStr = DateFormat('dd MMM yyyy').format(txn.date);
 
                                 String typeLabel;
                                 IconData typeIcon;
@@ -931,10 +992,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                                     ),
                                   ),
                                 );
-                              }),
-                            ],
-                          ];
-                        }(),
+                              }).toList(),
                       ),
               ),
             ],

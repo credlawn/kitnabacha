@@ -41,6 +41,15 @@ class _MyAppState extends ConsumerState<MyApp> {
   bool _showOnboarding = true;
 
   @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((p) {
+      final done = p.getBool('onboarding_complete') ?? false;
+      if (mounted) setState(() => _showOnboarding = !done);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final userId = ref.watch(userIdProvider);
     final authState = ref.watch(authStateProvider);
@@ -60,7 +69,10 @@ class _MyAppState extends ConsumerState<MyApp> {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,
       home: _showOnboarding
-          ? OnboardingScreen(onComplete: () => setState(() => _showOnboarding = false))
+          ? OnboardingScreen(onComplete: () {
+              SharedPreferences.getInstance().then((p) => p.setBool('onboarding_complete', true));
+              setState(() => _showOnboarding = false);
+            })
           : authState.when(
               data: (user) => DashboardScreen(userId: userId),
               loading: () => const Scaffold(
