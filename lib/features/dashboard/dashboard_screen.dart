@@ -4,6 +4,8 @@ import '../../core/database/local_db.dart';
 import '../../core/providers.dart';
 import '../../core/settings_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/restore_account_dialog.dart';
+import '../../core/pocketbase/pocketbase_client.dart';
 import '../ledger/ledger_screen.dart';
 import '../contacts/add_contact_screen.dart';
 import '../expense/expense_dashboard.dart';
@@ -86,6 +88,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<Map<String, dynamic>?>(pendingRestoreProvider, (prev, next) {
+      if (next != null && prev != next) {
+        RestoreAccountDialog.show(
+          context: context,
+          daysRemaining: (next['daysRemaining'] as int?) ?? 0,
+          onRestore: () {
+            PocketBaseService.restoreAccount().then((_) {
+              if (context.mounted) {
+                AppTheme.showSnackBar(context, 'Account restored successfully');
+              }
+            }).catchError((_) {
+              if (context.mounted) {
+                AppTheme.showSnackBar(context, 'Failed to restore account. Try again.');
+              }
+            });
+          },
+        ).then((restored) {
+          ref.read(pendingRestoreProvider.notifier).clear();
+          if (restored != true && context.mounted) {
+            ref.read(authNotifierProvider.notifier).logout();
+                  AppTheme.showSnackBar(context, 'Deletion will proceed as requested');
+          }
+        });
+      }
+    });
+
     final regularContactsState = ref.watch(contactsStreamProvider(widget.userId));
     final archivedContactsState = ref.watch(archivedContactsStreamProvider(widget.userId));
     final contactsState = _showArchived ? archivedContactsState : regularContactsState;

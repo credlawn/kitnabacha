@@ -103,6 +103,16 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
 
 final syncStatusProvider = NotifierProvider<SyncStatusNotifier, SyncStatus>(SyncStatusNotifier.new);
 
+class PendingRestoreNotifier extends Notifier<Map<String, dynamic>?> {
+  @override
+  Map<String, dynamic>? build() => null;
+
+  void set(Map<String, dynamic>? value) => state = value;
+  void clear() => state = null;
+}
+
+final pendingRestoreProvider = NotifierProvider<PendingRestoreNotifier, Map<String, dynamic>?>(PendingRestoreNotifier.new);
+
 class AuthNotifier extends AsyncNotifier<RecordModel?> {
   @override
   FutureOr<RecordModel?> build() {
@@ -118,6 +128,7 @@ class AuthNotifier extends AsyncNotifier<RecordModel?> {
         await _migrateGuestData(newUserId);
       }
       state = AsyncValue.data(authRes.record);
+      await _checkRestoreStatus();
     } catch (e, stack) {
       Sentry.captureException(e, stackTrace: stack);
       state = AsyncValue.error(e, stack);
@@ -199,10 +210,20 @@ class AuthNotifier extends AsyncNotifier<RecordModel?> {
         await _migrateGuestData(newUserId);
       }
       state = AsyncValue.data(authRes.record);
+      await _checkRestoreStatus();
     } catch (e, stack) {
       Sentry.captureException(e, stackTrace: stack);
       state = AsyncValue.error(e, stack);
     }
+  }
+
+  Future<void> _checkRestoreStatus() async {
+    try {
+      final status = await PocketBaseService.getAccountStatus();
+      if (status['markedForDeletion'] == true) {
+        ref.read(pendingRestoreProvider.notifier).set(status);
+      }
+    } catch (_) {}
   }
 
   Future<void> logout() async {
@@ -210,6 +231,7 @@ class AuthNotifier extends AsyncNotifier<RecordModel?> {
     try {
       await PocketBaseService.signOut();
       state = const AsyncValue.data(null);
+      ref.read(pendingRestoreProvider.notifier).clear();
     } catch (e, stack) {
       Sentry.captureException(e, stackTrace: stack);
       state = AsyncValue.error(e, stack);

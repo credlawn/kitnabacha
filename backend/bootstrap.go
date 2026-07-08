@@ -166,5 +166,30 @@ func bootstrapCollections(app core.App) error {
 		}
 	}
 
+	// Ensure custom fields exist on the existing users collection
+	if usersCol != nil {
+		hasMarked := false
+		hasRequestTime := false
+		for _, f := range usersCol.Fields {
+			if f.GetName() == "marked_for_deletion" {
+				hasMarked = true
+			}
+			if f.GetName() == "request_time" {
+				hasRequestTime = true
+			}
+		}
+		if !hasMarked {
+			usersCol.Fields.Add(&core.BoolField{Name: "marked_for_deletion"})
+		}
+		if !hasRequestTime {
+			usersCol.Fields.Add(&core.DateField{Name: "request_time"})
+		}
+		if !hasMarked || !hasRequestTime {
+			if err := app.Save(usersCol); err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }

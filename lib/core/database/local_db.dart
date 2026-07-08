@@ -285,6 +285,13 @@ class AppDatabase extends _$AppDatabase {
   Future<List<Expense>> getDirtyExpenses(String userId) {
     return (select(expenses)..where((t) => t.userId.equals(userId) & t.isDirty.equals(true))).get();
   }
+
+  Future<void> clearAllData(String userId) async {
+    await (delete(transactions)..where((t) => t.userId.equals(userId))).go();
+    await (delete(expenses)..where((t) => t.userId.equals(userId))).go();
+    await (delete(contacts)..where((t) => t.userId.equals(userId))).go();
+    await (delete(expenseCategories)..where((t) => t.userId.equals(userId))).go();
+  }
 }
 
 LazyDatabase _openConnection() {

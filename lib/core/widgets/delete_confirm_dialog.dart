@@ -110,6 +110,7 @@ class DeleteConfirmDialog extends StatelessWidget {
                       ),
                       child: Text(
                         'Cancel',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                           fontWeight: FontWeight.w600,
@@ -135,6 +136,7 @@ class DeleteConfirmDialog extends StatelessWidget {
                       ),
                       child: Text(
                         confirmLabel,
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,

@@ -107,7 +107,7 @@ const privacyHTML = `<!DOCTYPE html>
           <td><span class="tag tag-collect">Yes</span></td>
         </tr>
         <tr>
-          <td>Transactions, contacts, expenses, budgets, debts</td>
+          <td>Transactions, in-app payee names/contacts, expenses, budgets, debts</td>
           <td>Core app functionality — you enter this data to track your finances</td>
           <td><span class="tag tag-collect">As entered by you</span></td>
         </tr>
@@ -152,7 +152,7 @@ const privacyHTML = `<!DOCTYPE html>
         <li><strong>Financial records</strong> (transactions, contacts, etc.): retained while your account exists. You can delete individual records at any time from within the app.</li>
         <li><strong>Crash reports</strong>: retained for 90 days in aggregate, anonymous form.</li>
       </ul>
-      <p>When you delete your account from the app, your access is blocked immediately. All your personal data and financial records are permanently removed from our server within 30 days.</p>
+      <p>When you delete your account from the app, your account is marked for deletion and you are signed out. You have <strong>5 days</strong> to cancel by logging back in. After this grace period, all your personal data and financial records are permanently removed from our server within 5–7 days.</p>
 
       <h2>6. Data Sharing &amp; Third Parties</h2>
       <p>We do not share your personal data with third parties except in the following limited circumstances:</p>
@@ -182,7 +182,7 @@ const privacyHTML = `<!DOCTYPE html>
         <li><strong>Export</strong> — Export your data from the Settings screen.</li>
         <li><strong>Delete records</strong> — Delete individual transactions or contacts from the app.</li>
         <li><strong>Delete account</strong> — Permanently delete your account and all associated data from Settings → Delete Account.</li>
-        <li><strong>Withdraw consent</strong> — You may stop using the app at any time. Your data on your device remains yours; server data is removed within 30 days of account deletion.</li>
+        <li><strong>Withdraw consent</strong> — You may stop using the app at any time. Your data on your device remains yours. When you delete your account, you have <strong>5 days</strong> to cancel by logging in; after that, server data is removed within 5–7 days.</li>
       </ul>
 
       <h2>8. Children's Privacy</h2>
@@ -195,12 +195,13 @@ const privacyHTML = `<!DOCTYPE html>
       <p>If you have any questions, concerns, or requests regarding this Privacy Policy or your data, please contact us:</p>
       <div class="box">
         <p><strong>Email:</strong> <a href="mailto:admin@credlawn.com">admin@credlawn.com</a></p>
+        <p><strong>Grievance Officer:</strong> <a href="mailto:admin@credlawn.com">admin@credlawn.com</a></p>
         <p><strong>Developer:</strong> Credlawn India</p>
       </div>
 
     </div>
     <div class="footer">
-      <p>&copy; 2026 Credlawn India. All rights reserved. &middot; <a href="/privacy.html">Privacy Policy</a></p>
+      <p>&copy; 2026 Credlawn India. All rights reserved. &middot; <a href="/privacy">Privacy Policy</a></p>
     </div>
   </div>
 </div>
@@ -209,7 +210,7 @@ const privacyHTML = `<!DOCTYPE html>
 </html>`
 
 func RegisterPrivacyRoute(e *core.ServeEvent) {
-	e.Router.GET("/privacy.html", func(req *core.RequestEvent) error {
+	e.Router.GET("/privacy", func(req *core.RequestEvent) error {
 		req.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(req.Response, privacyHTML)
 		return nil

@@ -5,13 +5,21 @@ import '../../core/providers.dart';
 import '../../core/settings_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/delete_confirm_dialog.dart';
+import '../../core/pocketbase/pocketbase_client.dart';
 import '../auth/auth_screen.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _dangerExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final record = authState.value;
     final isGuest = record == null;
@@ -70,24 +78,6 @@ class SettingsScreen extends ConsumerWidget {
               AppTheme.showSnackBar(context, 'Coming soon!');
             },
           ),
-          const Divider(height: 1),
-          _buildSettingTile(
-            context,
-            icon: Icons.delete_outline_rounded,
-            title: 'Clear All Data',
-            textColor: AppTheme.debitRed,
-            onTap: () async {
-              final confirmed = await DeleteConfirmDialog.show(
-                context: context,
-                title: 'Clear All Data?',
-                message: 'This will permanently delete all your contacts, transactions, and expenses. This action cannot be undone.',
-                confirmLabel: 'Clear All',
-              );
-              if (confirmed == true && context.mounted) {
-                AppTheme.showSnackBar(context, 'Data cleared successfully');
-              }
-            },
-          ),
           const SizedBox(height: 20),
           _buildSectionHeader(context, 'ABOUT'),
           const SizedBox(height: 8),
@@ -109,7 +99,119 @@ class SettingsScreen extends ConsumerWidget {
                 Navigator.pop(context);
               },
             ),
+          if (!isGuest) ...[
+            const SizedBox(height: 24),
+            _buildDangerZone(context),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildDangerZone(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppTheme.darkCard : const Color(0xFFF7F8FA);
+    final accentColor = isDark ? Colors.grey.shade500 : const Color(0xFF8E8E93);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => setState(() => _dangerExpanded = !_dangerExpanded),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 18,
+                    color: accentColor,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Danger Zone',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: accentColor,
+                      ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _dangerExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: accentColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox(),
+            secondChild: _buildDeleteAccountTile(context),
+            crossFadeState: _dangerExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 200),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeleteAccountTile(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = isDark ? Colors.grey.shade500 : const Color(0xFF8E8E93);
+
+    return InkWell(
+      onTap: () async {
+        final confirmed = await DeleteConfirmDialog.show(
+          context: context,
+          title: 'Delete Account?',
+          message: 'Your account and all associated data will be permanently deleted. You can cancel this request by logging back in within 5 days.',
+          confirmLabel: 'Delete Account',
+        );
+        if (confirmed == true && context.mounted) {
+          try {
+            await PocketBaseService.deleteAccount();
+          } catch (_) {}
+          await PocketBaseService.signOut();
+          if (context.mounted) {
+            AppTheme.showSnackBar(context, 'Deletion request submitted. Log in within 5 days to cancel.');
+            Navigator.pop(context);
+          }
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+        child: Row(
+          children: [
+            const SizedBox(width: 28),
+            Icon(
+              Icons.delete_outline_rounded,
+              size: 18,
+              color: accentColor,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Delete Account',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: accentColor,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

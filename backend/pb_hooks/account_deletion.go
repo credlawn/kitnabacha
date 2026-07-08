@@ -107,7 +107,7 @@ const accountDeletionHTML = `<!DOCTYPE html>
     </div>
     <div class="content">
 
-      <p>At Ledgeo, we respect your privacy and give you full control over your data. If you choose to delete your account, follow one of the options below. <strong>Deletion is irreversible</strong> and will permanently erase all your data from our servers.</p>
+      <p>At Ledgeo, we respect your privacy and give you full control over your data. If you choose to delete your account, follow one of the options below. <strong>Deletion is irreversible once the 5-day grace period expires</strong> and will permanently erase all your data from our servers.</p>
 
       <h2>Option 1: Delete from the App (Recommended)</h2>
       <div class="option-card">
@@ -128,7 +128,7 @@ const accountDeletionHTML = `<!DOCTYPE html>
           <div class="step-text">Confirm the deletion when prompted.</div>
         </div>
       </div>
-      <p>Once confirmed, your account access will be blocked immediately. Your data will be permanently removed from our servers within 30 days.</p>
+      <p>Once confirmed, your account will be marked for deletion and you will be signed out. You have <strong>5 days</strong> to cancel the process by simply logging back in. After this grace period, your account and all associated data will be permanently erased.</p>
 
       <h2>Option 2: Request Deletion via Email</h2>
       <div class="option-card">
@@ -142,14 +142,15 @@ const accountDeletionHTML = `<!DOCTYPE html>
         </div>
         <div class="step">
           <div class="step-num">3</div>
-          <div class="step-text">Our team will process your request within <strong>3&ndash;5 business days</strong> and send you a confirmation email once the deletion is complete.</div>
+          <div class="step-text">Our team will process your request within <strong>7 days</strong> and send you a confirmation email once the deletion is complete.</div>
         </div>
       </div>
 
       <div class="warning">
-        <p><strong>Please note:</strong></p>
-        <p>Deleting your account is permanent. Your access is blocked immediately, and all your data stored on our servers will be permanently erased within 30 days. Data stored locally on your device will not be affected; you can clear it by uninstalling the app.</p>
-        <p>If you sign in again after deletion, a new account will be created automatically.</p>
+        <p><strong>Important:</strong></p>
+        <p>Once you initiate deletion, your account is marked for removal and you will be signed out. You can cancel the process at any time by logging back in within <strong>5 days</strong> of your request.</p>
+        <p>After the 5-day grace period expires, your account and all associated data will be permanently erased from our servers within <strong>5–7 days</strong>. This action cannot be undone.</p>
+        <p>Data stored locally on your device will not be affected; you can clear it by uninstalling the app.</p>
       </div>
 
       <h2>What Gets Deleted</h2>
@@ -170,7 +171,7 @@ const accountDeletionHTML = `<!DOCTYPE html>
 
     </div>
     <div class="footer">
-      <p>&copy; 2026 Credlawn India. All rights reserved. &middot; <a href="/privacy.html">Privacy Policy</a></p>
+      <p>&copy; 2026 Credlawn India. All rights reserved. &middot; <a href="/privacy">Privacy Policy</a></p>
     </div>
   </div>
 </div>

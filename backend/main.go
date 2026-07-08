@@ -22,6 +22,9 @@ func main() {
 			}
 			pb_hooks.RegisterPrivacyRoute(e)
 			pb_hooks.RegisterAccountDeletionRoute(e)
+			pb_hooks.RegisterDeleteAccountRoute(e)
+			pb_hooks.RegisterAccountStatusRoute(e)
+			pb_hooks.RegisterRestoreAccountRoute(e)
 			pb_hooks.RegisterGoogleAuthRoute(e)
 			return e.Next()
 		},

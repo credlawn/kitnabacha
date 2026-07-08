@@ -73,6 +73,27 @@ class PocketBaseService {
     return RecordAuth(token: token, record: record);
   }
 
+  static Future<Map<String, dynamic>> deleteAccount() async {
+    return client.send<Map<String, dynamic>>(
+      '/api/account/delete',
+      method: 'POST',
+    );
+  }
+
+  static Future<Map<String, dynamic>> getAccountStatus() async {
+    return client.send<Map<String, dynamic>>(
+      '/api/account/status',
+      method: 'POST',
+    );
+  }
+
+  static Future<Map<String, dynamic>> restoreAccount() async {
+    return client.send<Map<String, dynamic>>(
+      '/api/account/restore',
+      method: 'POST',
+    );
+  }
+
   static Future<void> signOut() async {
     client.authStore.clear();
   }
