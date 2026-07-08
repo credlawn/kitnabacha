@@ -2,9 +2,7 @@ package main
 
 import (
 	"log"
-	"time"
 
-	"github.com/getsentry/sentry-go"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/hook"
@@ -13,12 +11,7 @@ import (
 )
 
 func main() {
-	if err := sentry.Init(sentry.ClientOptions{
-		Dsn: "https://53c2213a4f84b960e8b88657d1734542@o4511670483550208.ingest.de.sentry.io/4511670682714192",
-	}); err != nil {
-		log.Fatalf("sentry.Init: %s", err)
-	}
-	defer sentry.Flush(2 * time.Second)
+	defer pb_hooks.InitSentry()()
 
 	app := pocketbase.New()
 
@@ -27,6 +20,8 @@ func main() {
 			if err := bootstrapCollections(e.App); err != nil {
 				return err
 			}
+			pb_hooks.RegisterPrivacyRoute(e)
+			pb_hooks.RegisterAccountDeletionRoute(e)
 			pb_hooks.RegisterGoogleAuthRoute(e)
 			return e.Next()
 		},

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/providers.dart';
 import 'core/settings_provider.dart';
 import 'core/pocketbase/pocketbase_client.dart';
+import 'core/update_checker.dart';
 import 'core/theme/app_theme.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -26,6 +27,8 @@ void main() async {
           child: MyApp(),
         ),
       );
+
+      UpdateChecker.check();
     },
   );
 }
@@ -63,6 +66,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     });
 
     return MaterialApp(
+      navigatorKey: UpdateChecker.navigatorKey,
       title: 'Ledgeo',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,

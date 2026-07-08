@@ -107,6 +107,21 @@ func bootstrapCollections(app core.App) error {
 				return c
 			},
 		},
+		{
+			name: "app_config",
+			build: func() *core.Collection {
+				c := core.NewBaseCollection("app_config")
+				c.ListRule = ptr("")
+				c.ViewRule = ptr("")
+				c.CreateRule = ptr("")
+				c.UpdateRule = ptr("")
+				c.DeleteRule = ptr("")
+				c.Fields.Add(&core.TextField{Name: "latest_version"})
+				c.Fields.Add(&core.BoolField{Name: "update_mandatory"})
+				c.Fields.Add(&core.TextField{Name: "update_url"})
+				return c
+			},
+		},
 	}
 
 	for _, col := range collections {

@@ -8,6 +8,7 @@ import '../../../core/database/local_db.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/delete_confirm_dialog.dart';
+import '../categories_screen.dart';
 
 class AddExpenseSheet extends ConsumerStatefulWidget {
   final String userId;
@@ -236,13 +237,18 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CategoriesScreen(userId: widget.userId),
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Go Back'),
+                  child: const Text('Manage Categories'),
                 ),
               ],
             ),
