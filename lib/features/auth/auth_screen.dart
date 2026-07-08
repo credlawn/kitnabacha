@@ -215,7 +215,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 SizedBox(
                   height: 48,
                   child: OutlinedButton.icon(
-                    onPressed: () {},
+                    onPressed: isLoading
+                        ? null
+                        : () => ref.read(authNotifierProvider.notifier).signInWithGoogle(),
                     icon: SizedBox(
                       width: 20,
                       height: 20,

@@ -7,8 +7,8 @@ if [ "$COMMAND" = "run" ]; then
     go run . serve --http="0.0.0.0:8090"
 elif [ "$COMMAND" = "build" ] || [ "$COMMAND" = "p" ]; then
     echo "Building Linux production binary..."
-    GOOS=linux GOARCH=amd64 go build -o kitnabacha
-    echo "Done! Saved as: kitnabacha"
+    GOOS=linux GOARCH=amd64 go build -o ledgeo
+    echo "Done! Saved as: Ledgeo"
 else
     echo "Usage: ./app {run|p}"
     exit 1

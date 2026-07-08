@@ -8,6 +8,8 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/hook"
+
+	"custompb/pb_hooks"
 )
 
 func main() {
@@ -25,6 +27,7 @@ func main() {
 			if err := bootstrapCollections(e.App); err != nil {
 				return err
 			}
+			pb_hooks.RegisterGoogleAuthRoute(e)
 			return e.Next()
 		},
 		Priority: 999,

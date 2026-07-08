@@ -1012,11 +1012,9 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
 
           return Container(
             color: Theme.of(context).scaffoldBackgroundColor,
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 12,
-              bottom: MediaQuery.of(context).padding.bottom + 12,
+            padding: EdgeInsets.fromLTRB(
+              16, 12, 16,
+              12 + MediaQuery.of(context).viewPadding.bottom,
             ),
             child: Row(
               children: [

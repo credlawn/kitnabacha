@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 
 class ContactPicker {
-  static const _channel = MethodChannel('com.ledgeo.app/contact_picker');
+  static const _channel = MethodChannel('com.credlawn.ledgeo/contact_picker');
 
   static Future<({String name, String phone})?> pickContact() async {
     try {

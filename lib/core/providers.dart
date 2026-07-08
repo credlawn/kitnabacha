@@ -7,6 +7,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'database/local_db.dart';
 import 'sync/sync_engine.dart';
 import 'pocketbase/pocketbase_client.dart';
+import '../features/auth/google_auth_service.dart';
 
 const _oldIdPrefix = 'c0000000-';
 
@@ -178,6 +179,30 @@ class AuthNotifier extends AsyncNotifier<RecordModel?> {
         ),
       );
     });
+  }
+
+  Future<void> signInWithGoogle() async {
+    state = const AsyncValue.loading();
+    try {
+      final idToken = await GoogleAuthService.getIdToken();
+      if (idToken == null) {
+        state = AsyncValue.error(
+          'Google sign-in cancelled.',
+          StackTrace.current,
+        );
+        return;
+      }
+
+      final authRes = await PocketBaseService.signInWithGoogle(idToken);
+      final newUserId = authRes.record.id;
+      if (newUserId.isNotEmpty) {
+        await _migrateGuestData(newUserId);
+      }
+      state = AsyncValue.data(authRes.record);
+    } catch (e, stack) {
+      Sentry.captureException(e, stackTrace: stack);
+      state = AsyncValue.error(e, stack);
+    }
   }
 
   Future<void> logout() async {

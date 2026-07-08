@@ -479,7 +479,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                 ),
               ),
-              padding: EdgeInsets.only(top: 6, bottom: MediaQuery.of(context).padding.bottom + 4),
+              padding: EdgeInsets.only(top: 6, bottom: MediaQuery.of(context).viewPadding.bottom + 4),
               child: Row(
                 children: [
                   _navItem(

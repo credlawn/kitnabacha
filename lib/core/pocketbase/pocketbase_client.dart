@@ -58,6 +58,21 @@ class PocketBaseService {
     });
   }
 
+  static Future<RecordAuth> signInWithGoogle(String idToken) async {
+    final data = await client.send<Map<String, dynamic>>(
+      '/api/auth/google',
+      method: 'POST',
+      body: {'idToken': idToken},
+    );
+
+    final token = data['token'] as String;
+    final record = RecordModel.fromJson(data['record'] as Map<String, dynamic>);
+
+    client.authStore.save(token, record);
+
+    return RecordAuth(token: token, record: record);
+  }
+
   static Future<void> signOut() async {
     client.authStore.clear();
   }
