@@ -159,7 +159,7 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
 
     final amount = double.tryParse(_amountController.text) ?? 0.0;
     if (amount <= 0) {
-      AppTheme.showSnackBar(context, 'Please enter a valid amount greater than 0');
+      AppTheme.showSnackBar(context, 'Amount must be greater than 0');
       return;
     }
 
@@ -336,8 +336,8 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
                   contentPadding: const EdgeInsets.symmetric(vertical: 20),
                 ),
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) return 'Please enter amount';
-                  if (double.tryParse(value) == null) return 'Please enter a valid number';
+                  if (value == null || value.trim().isEmpty) return 'Enter an amount';
+                  if (double.tryParse(value) == null) return 'Enter a valid number';
                   return null;
                 },
               ),

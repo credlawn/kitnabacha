@@ -212,7 +212,7 @@ class _AddContactScreenState extends ConsumerState<AddContactScreen> {
                   contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) return 'Please enter a name';
+                  if (value == null || value.trim().isEmpty) return 'Enter a name';
                   return null;
                 },
               ),

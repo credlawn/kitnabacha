@@ -120,7 +120,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Please enter a category name';
+                            return 'Enter a category name';
                           }
                           return null;
                         },
@@ -269,7 +269,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Please enter a name';
+                  return 'Enter a name';
                 }
                 return null;
               },
@@ -466,7 +466,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
-        error: (e, _) => Center(child: Text('Error loading categories: $e')),
+        error: (e, _) => Center(child: Text('Could not load categories. Pull down to refresh.')),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddCategorySheet,

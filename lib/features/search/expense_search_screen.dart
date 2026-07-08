@@ -199,10 +199,10 @@ class _ExpenseSearchScreenState extends ConsumerState<ExpenseSearchScreen> {
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
-                error: (e, _) => Center(child: Text('$e')),
+                error: (e, _) => Center(child: Text('Could not load expenses. Pull down to refresh.')),
               ),
               loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
-              error: (e, _) => Center(child: Text('$e')),
+              error: (e, _) => Center(child: Text('Could not load contacts. Pull down to refresh.')),
             ),
           ),
         ],

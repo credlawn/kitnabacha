@@ -472,10 +472,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       );
                     },
                 loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
-                error: (e, _) => Center(child: Text('Error loading transactions: $e')),
+                error: (e, _) => Center(child: Text('Could not load transactions. Pull down to refresh.')),
               ),
               loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
-              error: (e, _) => Center(child: Text('Error loading contacts: $e')),
+              error: (e, _) => Center(child: Text('Could not load contacts. Pull down to refresh.')),
             )
           : ExpenseDashboard(userId: widget.userId),
       floatingActionButton: null,

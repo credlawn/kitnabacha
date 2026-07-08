@@ -719,10 +719,10 @@ class _ExpenseDashboardState extends ConsumerState<ExpenseDashboard> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
-        error: (e, _) => Center(child: Text('Error loading expenses: $e')),
+        error: (e, _) => Center(child: Text('Could not load expenses. Pull down to refresh.')),
       ),
       loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
-      error: (e, _) => Center(child: Text('Error loading categories: $e')),
+       error: (e, _) => Center(child: Text('Could not load categories. Pull down to refresh.')),
     );
   }
 }

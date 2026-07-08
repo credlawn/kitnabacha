@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pocketbase/pocketbase.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/errors.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -51,7 +52,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     if (!mounted) return;
     final authState = ref.read(authNotifierProvider);
     if (authState.hasError) {
-      AppTheme.showSnackBar(context, authState.error.toString().replaceAll('Exception: ', ''), backgroundColor: AppTheme.debitRed);
+      final message = ErrorMessages.getAuthError(authState.error);
+      AppTheme.showSnackBar(context, message, backgroundColor: AppTheme.debitRed);
     }
   }
 
@@ -109,11 +111,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   style: TextStyle(fontSize: 15, color: isDark ? Colors.white : AppTheme.textPrimary),
                   decoration: _fieldDecoration('Email', Icons.email_outlined, isDark),
                   onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Email is required';
-                    if (!v.contains('@')) return 'Enter a valid email';
-                    return null;
-                  },
+                   validator: (v) {
+                     if (v == null || v.trim().isEmpty) return 'Email required';
+                     if (!v.contains('@')) return 'Enter a valid email';
+                     return null;
+                   },
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
@@ -151,11 +153,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     style: TextStyle(fontSize: 15, color: isDark ? Colors.white : AppTheme.textPrimary),
                     decoration: _fieldDecoration('Confirm Password', Icons.lock_outlined, isDark),
                     onFieldSubmitted: (_) => _submit(),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Please confirm your password';
-                      if (v != _passwordController.text) return 'Passwords do not match';
-                      return null;
-                    },
+                     validator: (v) {
+                       if (v == null || v.trim().isEmpty) return 'Confirm your password';
+                       if (v != _passwordController.text) return 'Passwords do not match';
+                       return null;
+                     },
                   ),
                 ],
                 const SizedBox(height: 4),

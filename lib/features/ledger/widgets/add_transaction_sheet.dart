@@ -318,11 +318,11 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter an amount';
+                    return 'Enter an amount';
                   }
                   final parsed = double.tryParse(value);
                   if (parsed == null || parsed <= 0) {
-                    return 'Please enter a valid positive number';
+                    return 'Enter a positive amount';
                   }
                   return null;
                 },
@@ -367,9 +367,9 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please add a remark';
-                  }
+                if (value == null || value.trim().isEmpty) {
+                  return 'Add a remark (optional)';
+                }
                   return null;
                 },
               ),

@@ -999,7 +999,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text('Could not load transactions. Pull down to refresh.')),
       ),
       bottomSheet: Consumer(
         builder: (context, ref, child) {
