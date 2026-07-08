@@ -5,9 +5,12 @@ COMMAND=${1:-run}
 if [ "$COMMAND" = "run" ]; then
     echo "Starting Flutter app with PocketBase at http://192.168.29.184:8090..."
     flutter run --dart-define=POCKETBASE_URL=http://127.0.0.1:8090
-elif [ "$COMMAND" = "build" ] || [ "$COMMAND" = "p" ]; then
+  elif [ "$COMMAND" = "build" ] || [ "$COMMAND" = "p" ]; then
     echo "Building Flutter APK..."
     flutter build apk --dart-define=POCKETBASE_URL=https://ledgeo.paisamilega.in --dart-define=GOOGLE_SERVER_CLIENT_ID=363375013617-bv7hii7gvf8ik4a6n06tko94loipu7a8.apps.googleusercontent.com
+  elif [ "$COMMAND" = "play" ]; then
+    echo "Building Flutter AAB for Play Store..."
+    flutter build appbundle --release --obfuscate --split-debug-info=build/debug-info --dart-define=POCKETBASE_URL=https://ledgeo.paisamilega.in --dart-define=GOOGLE_SERVER_CLIENT_ID=363375013617-bv7hii7gvf8ik4a6n06tko94loipu7a8.apps.googleusercontent.com
 else
     echo "Usage: ./run {run|p}"
     exit 1
