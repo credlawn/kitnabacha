@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/providers.dart';
 import '../../core/settings_provider.dart';
 import '../../core/theme/app_theme.dart';
@@ -17,6 +19,18 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _dangerExpanded = false;
+  PackageInfo? _packageInfo;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPackageInfo();
+  }
+
+  Future<void> _loadPackageInfo() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) setState(() => _packageInfo = info);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +39,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final isGuest = record == null;
     final settings = ref.watch(settingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     final displayName = record == null
         ? 'Guest User'
         : record.get<String>('name').isNotEmpty == true
@@ -39,65 +52,110 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Profile Card
           _buildProfileCard(context, record: record, displayName: displayName, isDark: isDark),
-          const SizedBox(height: 20),
-          _buildSectionHeader(context, 'APPEARANCE'),
-          const SizedBox(height: 8),
-          _buildSettingTile(
+          const SizedBox(height: 12),
+
+          // Appearance Card
+          _buildSettingsCard(
             context,
-            icon: Icons.numbers_rounded,
-            title: 'Decimal Format',
-            subtitle: _decimalLabel(settings.decimalFormat),
-            onTap: () => _showDecimalSheet(context, ref),
+            children: [
+              _buildTile(
+                context,
+                icon: Icons.numbers_rounded,
+                title: 'Decimal Format',
+                subtitle: _decimalLabel(settings.decimalFormat),
+                onTap: () => _showDecimalSheet(context, ref),
+              ),
+              _buildTile(
+                context,
+                icon: Icons.dashboard_rounded,
+                title: 'Default Page',
+                subtitle: settings.defaultPage == DefaultPage.ledger ? 'Ledger' : 'Expense',
+                onTap: () => _showDefaultPageSheet(context, ref),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          _buildSectionHeader(context, 'PREFERENCES'),
-          const SizedBox(height: 8),
-          _buildSettingTile(
+          const SizedBox(height: 12),
+
+          // Data Card
+          _buildSettingsCard(
             context,
-            icon: Icons.dashboard_rounded,
-            title: 'Default Page',
-            subtitle: settings.defaultPage == DefaultPage.ledger ? 'Ledger' : 'Expense',
-            onTap: () => _showDefaultPageSheet(context, ref),
+            children: [
+              _buildTile(
+                context,
+                icon: Icons.download_rounded,
+                title: 'Export as CSV',
+                onTap: () => AppTheme.showSnackBar(context, 'Coming soon!'),
+              ),
+            ],
           ),
-          const Divider(height: 1),
-          _buildSettingTile(
+          const SizedBox(height: 12),
+
+          // About Card
+          _buildSettingsCard(
             context,
-            icon: Icons.currency_rupee_rounded,
-            title: 'Currency',
-            subtitle: 'Indian Rupee (₹)',
+            children: [
+              _buildTile(
+                context,
+                icon: Icons.description_outlined,
+                title: 'Privacy Policy',
+                onTap: () async {
+                  final url = Uri.parse('https://ledgeo.paisamilega.in/privacy');
+                  if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Container(height: 1, color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
+              ),
+              _buildTile(
+                context,
+                icon: Icons.message_rounded,
+                title: 'WhatsApp Support',
+                onTap: () async {
+                  final url = Uri.parse('https://wa.me/919752146314');
+                  if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
+                },
+              ),
+              _buildTile(
+                context,
+                icon: Icons.email_outlined,
+                title: 'Email Support',
+                onTap: () async {
+                  final url = Uri.parse('mailto:admin@credlawn.com');
+                  if (await canLaunchUrl(url)) await launchUrl(url);
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Container(height: 1, color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
+              ),
+              _buildTile(
+                context,
+                icon: Icons.info_outline_rounded,
+                title: 'V ${_packageInfo?.version ?? '...'}',
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          _buildSectionHeader(context, 'DATA'),
-          const SizedBox(height: 8),
-          _buildSettingTile(
-            context,
-            icon: Icons.download_rounded,
-            title: 'Export as CSV',
-            onTap: () {
-              AppTheme.showSnackBar(context, 'Coming soon!');
-            },
-          ),
-          const SizedBox(height: 20),
-          _buildSectionHeader(context, 'ABOUT'),
-          const SizedBox(height: 8),
-          _buildSettingTile(
-            context,
-            icon: Icons.info_outline_rounded,
-            title: 'Version',
-            subtitle: '1.0.0',
-          ),
-          const Divider(height: 1),
+          const SizedBox(height: 12),
+
+          // Account Card
           if (!isGuest)
-            _buildSettingTile(
+            _buildSettingsCard(
               context,
-              icon: Icons.logout_rounded,
-              title: 'Sign Out',
-              textColor: AppTheme.debitRed,
-              onTap: () {
-                ref.read(authNotifierProvider.notifier).logout();
-                Navigator.pop(context);
-              },
+              children: [
+                _buildTile(
+                  context,
+                  icon: Icons.logout_rounded,
+                  title: 'Sign Out',
+                  textColor: AppTheme.debitRed,
+                  onTap: () async {
+                    await ref.read(authNotifierProvider.notifier).logout();
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                ),
+              ],
             ),
           if (!isGuest) ...[
             const SizedBox(height: 24),
@@ -224,9 +282,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return '1 Decimal Place (e.g. 100.5)';
       case DecimalFormat.two:
         return '2 Decimal Places (e.g. 100.50)';
-    }
-  }
-
+   }
+}
   void _showDecimalSheet(BuildContext context, WidgetRef ref) {
     final current = ref.read(settingsProvider).decimalFormat;
     showModalBottomSheet(
@@ -363,121 +420,143 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildProfileCard(BuildContext context, {required RecordModel? record, required String displayName, required bool isDark}) {
     final isGuest = record == null;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      decoration: AppTheme.glassmorphicBox(context: context),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
-            child: Icon(
-              Icons.person_rounded,
-              color: AppTheme.primaryLight,
-              size: 24,
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: isDark ? AppTheme.darkCard : Colors.white,
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
+              child: Icon(Icons.person_rounded, color: AppTheme.primaryLight, size: 24),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayName,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Icon(
-                      isGuest ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
-                      size: 13,
-                      color: isGuest ? AppTheme.warningOrange : AppTheme.creditGreen,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary,
                     ),
-                    const SizedBox(width: 5),
-                    Text(
-                      isGuest ? 'No Backup' : 'Data is Safe',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Icon(
+                        isGuest ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
+                        size: 13,
                         color: isGuest ? AppTheme.warningOrange : AppTheme.creditGreen,
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (isGuest)
-            InkWell(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AuthScreen()),
+                      const SizedBox(width: 5),
+                      Text(
+                        isGuest ? 'No Backup' : 'Data is Safe',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isGuest ? AppTheme.warningOrange : AppTheme.creditGreen,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(8),
+            ),
+            if (isGuest)
+              InkWell(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AuthScreen()),
                 ),
-                child: const Text(
-                  'Backup Now',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Backup Now',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-        color: Theme.of(context).brightness == Brightness.dark
-            ? AppTheme.darkTextSecondary
-            : AppTheme.textSecondary,
-        letterSpacing: 1.5,
+  Widget _buildSettingsCard(BuildContext context, {required List<Widget> children}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: isDark ? AppTheme.darkCard : Colors.white,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      child: Column(
+        children: children,
       ),
     );
   }
 
-  Widget _buildSettingTile(
+  Widget _buildTile(
     BuildContext context, {
     required IconData icon,
     required String title,
     String? subtitle,
-    Widget? trailing,
     Color? textColor,
     VoidCallback? onTap,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: textColor ?? AppTheme.primaryLight, size: 22),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-          color: textColor ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.lightTextPrimary),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasSubtitle = subtitle != null;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: const BorderRadius.all(Radius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, color: textColor ?? AppTheme.primaryLight, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: textColor ?? (isDark ? AppTheme.darkTextPrimary : AppTheme.textPrimary),
+                    ),
+                  ),
+                  if (hasSubtitle)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        subtitle,
+                        style: const TextStyle(fontSize: 12, color: AppTheme.secondaryText),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (onTap != null)
+              Icon(Icons.chevron_right_rounded, size: 18, color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+          ],
         ),
       ),
-      subtitle: subtitle != null
-          ? Text(subtitle, style: const TextStyle(fontSize: 12, color: AppTheme.secondaryText))
-          : null,
-      trailing: trailing,
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-    );
+     );
   }
 }
